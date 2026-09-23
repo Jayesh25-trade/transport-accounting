@@ -48,6 +48,7 @@ next-env.d.ts
 # local database backups
 *.sql.backup
 *.dump
+backups/
 
 # OS
 Thumbs.db

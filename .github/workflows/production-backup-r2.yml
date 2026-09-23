@@ -1,0 +1,67 @@
+name: Production Off-Site Logical Backup (Cloudflare R2)
+
+# ============================================================
+# ACTIVATION BOUNDARY NOTICE:
+# This workflow file defines the automated daily backup pipeline.
+# Cron execution remains INACTIVE until Stage H human activation.
+# DO NOT enable or execute in production without explicit approval.
+# ============================================================
+
+on:
+  schedule:
+    # Daily off-site backup at 02:00 UTC (Inactive until Stage H activation)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: production-r2-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup-and-verify:
+    name: Execute & Verify Off-Site Logical Backup
+    runs-on: ubuntu-latest
+    # 15 minutes is an initial operational job timeout, not a guaranteed maximum backup duration.
+    # Must be validated against actual backup size and runtime during manual testing.
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Project Dependencies
+        run: npm ci
+
+      - name: Install PostgreSQL 16 Client Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+
+      - name: Execute Unified Backup Generation & Off-Site R2 Verification
+        env:
+          PROD_DIRECT_DATABASE_URL: ${{ secrets.PROD_DIRECT_DATABASE_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: npx tsx scripts/run-automated-backup-pipeline.ts
+
+      - name: Log Workflow Failure Context (Notification Pending Selection)
+        if: failure()
+        run: |
+          # Notification provider integration remains PENDING SELECTION by human management.
+          # Logs step failure context without falsely claiming external alert delivery.
+          echo "::error::CRITICAL: Production off-site backup workflow execution failed! Inspect runner step logs above."
+
+      - name: Clean Up Workspace Temporary Artifacts
+        if: always()
+        run: rm -rf backups/
