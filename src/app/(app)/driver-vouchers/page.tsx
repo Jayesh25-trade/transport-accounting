@@ -57,6 +57,7 @@ export default function DriverVouchersPage() {
     totalExpense: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -69,8 +70,12 @@ export default function DriverVouchersPage() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const fetchVouchers = useCallback(async () => {
-    if (!currentFirm) return;
+    if (!currentFirm) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
@@ -81,8 +86,8 @@ export default function DriverVouchersPage() {
       const res = await fetch(`/api/driver-vouchers?${params.toString()}`, {
         headers: { "x-firm-id": currentFirm.id },
       });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+      if (res.ok && data.success !== false) {
         setVouchers(data.vouchers || []);
         setMetrics(
           data.metrics || {
@@ -94,9 +99,12 @@ export default function DriverVouchersPage() {
             totalExpense: 0,
           }
         );
+      } else {
+        throw new Error(data.error?.message || "Failed to load driver vouchers");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to fetch driver vouchers:", err);
+      setError(err?.message || "Failed to load driver vouchers");
     } finally {
       setLoading(false);
     }
@@ -131,6 +139,19 @@ export default function DriverVouchersPage() {
           </Button>
         }
       />
+
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex items-center justify-between text-red-700 text-xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="text-red-500 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <Button variant="secondary" size="sm" onClick={fetchVouchers}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Notice Banner */}
       <div className="bg-amber-50 border border-amber-200 rounded p-3.5 text-xs text-amber-900 flex items-start gap-3">

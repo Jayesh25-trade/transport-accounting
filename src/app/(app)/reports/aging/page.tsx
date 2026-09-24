@@ -91,6 +91,10 @@ export default function AgingReportPage() {
 
   // Fetch Aging Report Data
   const fetchReport = useCallback(async () => {
+    if (!api.ready) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -222,8 +226,11 @@ export default function AgingReportPage() {
 
       {/* Error state */}
       {error && (
-        <div className="p-4 bg-red-50 text-red-600 rounded-xl text-xs border border-red-200">
-          {error}
+        <div className="p-4 bg-red-50 text-red-600 rounded-xl text-xs border border-red-200 flex items-center justify-between">
+          <span>{error}</span>
+          <Button variant="secondary" size="sm" onClick={fetchReport}>
+            Retry
+          </Button>
         </div>
       )}
 

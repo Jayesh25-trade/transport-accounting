@@ -13,7 +13,7 @@ function firmColor(idx: number) {
 }
 
 export function FirmSwitcher() {
-  const { currentFirm, firms, loading, error, setCurrentFirm } = useFirm();
+  const { currentFirm, firms, loading, error, setCurrentFirm, refetchFirms } = useFirm();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -38,11 +38,19 @@ export function FirmSwitcher() {
 
   if (error || !currentFirm) {
     return (
-      <div className="firm-switcher mx-2 my-2 border-red-800/40">
-        <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
-        <span className="text-red-400 text-xs truncate">
-          {error ?? "No firms found"}
-        </span>
+      <div className="firm-switcher mx-2 my-2 border-red-800/40 justify-between">
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          <AlertCircle size={14} className="text-red-400 flex-shrink-0" />
+          <span className="text-red-400 text-xs truncate">
+            {error ?? "No firms found"}
+          </span>
+        </div>
+        <button
+          onClick={() => refetchFirms()}
+          className="text-[10px] text-indigo-400 hover:text-indigo-300 underline font-semibold flex-shrink-0 ml-1"
+        >
+          Retry
+        </button>
       </div>
     );
   }

@@ -3,11 +3,13 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Mail, ShieldAlert, ArrowRight } from "lucide-react";
+import { useFirm } from "@/lib/firm-context";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+  const { refetchFirms } = useFirm();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,6 +34,7 @@ function LoginForm() {
         throw new Error(data.error?.message || "Invalid credentials");
       }
 
+      await refetchFirms();
       router.push(redirectTo);
       router.refresh();
     } catch (err: any) {
