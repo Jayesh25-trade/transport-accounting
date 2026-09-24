@@ -111,7 +111,7 @@ export default function DashboardPage() {
 
       if (res.ok) {
         const overview = await res.json();
-        setData(overview);
+        setData(overview.data || overview);
       }
     } catch (err) {
       console.error("Failed to fetch dashboard overview:", err);
@@ -238,7 +238,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Outstanding</p>
               <p className="text-2xl font-bold text-slate-900 font-mono mt-1">
-                {formatCurrency(data?.outstanding.totalOutstandingAmount || 0)}
+                {formatCurrency(data?.outstanding?.totalOutstandingAmount || 0)}
               </p>
             </div>
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -246,7 +246,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>{data?.outstanding.totalBills || 0} Bills Pending Settlement</span>
+            <span>{data?.outstanding?.totalBills || 0} Bills Pending Settlement</span>
             <Link href="/reports/outstanding" className="text-blue-600 hover:underline flex items-center gap-0.5">
               Report <ArrowUpRight className="w-3 h-3" />
             </Link>
@@ -259,7 +259,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Net Billed Revenue</p>
               <p className="text-2xl font-bold text-blue-700 font-mono mt-1">
-                {formatCurrency(data?.billing.netPayableTotal || 0)}
+                {formatCurrency(data?.billing?.netPayableTotal || 0)}
               </p>
             </div>
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
@@ -267,7 +267,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>{data?.billing.billCount || 0} Invoice Bills Created</span>
+            <span>{data?.billing?.billCount || 0} Invoice Bills Created</span>
             <Link href="/billing/bills" className="text-blue-600 hover:underline flex items-center gap-0.5">
               Bills List <ArrowUpRight className="w-3 h-3" />
             </Link>
@@ -280,7 +280,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment Receipts</p>
               <p className="text-2xl font-bold text-emerald-700 font-mono mt-1">
-                {formatCurrency(data?.payments.totalReceipts || 0)}
+                {formatCurrency(data?.payments?.totalReceipts || 0)}
               </p>
             </div>
             <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
@@ -288,7 +288,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Against-Bill: {formatCurrency(data?.payments.againstBillTotal || 0)}</span>
+            <span>Against-Bill: {formatCurrency(data?.payments?.againstBillTotal || 0)}</span>
             <Link href="/payments" className="text-blue-600 hover:underline flex items-center gap-0.5">
               Payments <ArrowUpRight className="w-3 h-3" />
             </Link>
@@ -300,15 +300,15 @@ export default function DashboardPage() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Daily Book Trips</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">{data?.dailyBook.totalEntries || 0}</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{data?.dailyBook?.totalEntries || 0}</p>
             </div>
             <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
               <BookOpen className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-emerald-700 font-medium">Received: {data?.dailyBook.receivedCount || 0}</span>
-            <span className="text-amber-700 font-medium">Pending: {data?.dailyBook.pendingCount || 0}</span>
+            <span className="text-emerald-700 font-medium">Received: {data?.dailyBook?.receivedCount || 0}</span>
+            <span className="text-amber-700 font-medium">Pending: {data?.dailyBook?.pendingCount || 0}</span>
           </div>
         </div>
       </div>
@@ -322,35 +322,35 @@ export default function DashboardPage() {
               <FileText className="w-4 h-4 text-blue-600" />
               Authoritative Billing & Revenue Breakdown
             </h2>
-            <Badge variant="neutral">{data?.billing.billCount || 0} Bills</Badge>
+            <Badge variant="neutral">{data?.billing?.billCount || 0} Bills</Badge>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="bg-slate-50 border border-slate-200 p-3 rounded">
               <p className="text-slate-500 font-medium">Gross Freight Subtotal</p>
               <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-                {formatCurrency(data?.billing.grossFreightTotal || 0)}
+                {formatCurrency(data?.billing?.grossFreightTotal || 0)}
               </p>
             </div>
 
             <div className="bg-red-50 border border-red-200 p-3 rounded">
               <p className="text-red-700 font-medium">Less: Shortage Debit Notes</p>
               <p className="text-sm font-bold text-red-900 font-mono mt-1">
-                - {formatCurrency(data?.billing.shortageDebitTotal || 0)}
+                - {formatCurrency(data?.billing?.shortageDebitTotal || 0)}
               </p>
             </div>
 
             <div className="bg-purple-50 border border-purple-200 p-3 rounded">
               <p className="text-purple-700 font-medium">Less: TDS Withheld</p>
               <p className="text-sm font-bold text-purple-900 font-mono mt-1">
-                - {formatCurrency(data?.billing.tdsTotal || 0)}
+                - {formatCurrency(data?.billing?.tdsTotal || 0)}
               </p>
             </div>
 
             <div className="bg-emerald-50 border border-emerald-200 p-3 rounded">
               <p className="text-emerald-800 font-medium">Net Bill Amount Payable</p>
               <p className="text-sm font-extrabold text-emerald-900 font-mono mt-1">
-                {formatCurrency(data?.billing.netPayableTotal || 0)}
+                {formatCurrency(data?.billing?.netPayableTotal || 0)}
               </p>
             </div>
           </div>
@@ -363,28 +363,28 @@ export default function DashboardPage() {
               <CreditCard className="w-4 h-4 text-emerald-600" />
               Payment Receipts Breakdown
             </h2>
-            <Badge variant="success">{data?.payments.paymentCount || 0} Transactions</Badge>
+            <Badge variant="success">{data?.payments?.paymentCount || 0} Transactions</Badge>
           </div>
 
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div className="bg-emerald-50 border border-emerald-200 p-3 rounded col-span-3 sm:col-span-1">
               <p className="text-emerald-800 font-medium">Total Received</p>
               <p className="text-base font-bold text-emerald-950 font-mono mt-1">
-                {formatCurrency(data?.payments.totalReceipts || 0)}
+                {formatCurrency(data?.payments?.totalReceipts || 0)}
               </p>
             </div>
 
             <div className="bg-slate-50 border border-slate-200 p-3 rounded col-span-3 sm:col-span-1">
               <p className="text-slate-600 font-medium">Against Bill Payments</p>
               <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-                {formatCurrency(data?.payments.againstBillTotal || 0)}
+                {formatCurrency(data?.payments?.againstBillTotal || 0)}
               </p>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 p-3 rounded col-span-3 sm:col-span-1">
               <p className="text-blue-700 font-medium">Advance Payments</p>
               <p className="text-sm font-bold text-blue-900 font-mono mt-1">
-                {formatCurrency(data?.payments.advanceTotal || 0)}
+                {formatCurrency(data?.payments?.advanceTotal || 0)}
               </p>
             </div>
           </div>
@@ -392,7 +392,7 @@ export default function DashboardPage() {
           <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded border border-slate-100 flex items-center justify-between">
             <span>Bill Settlement Statuses:</span>
             <span className="font-semibold text-slate-800">
-              {data?.outstanding.pendingCount || 0} Pending | {data?.outstanding.partiallyPaidCount || 0} Partial | {data?.outstanding.paidCount || 0} Fully Paid
+              {data?.outstanding?.pendingCount || 0} Pending | {data?.outstanding?.partiallyPaidCount || 0} Partial | {data?.outstanding?.paidCount || 0} Fully Paid
             </span>
           </div>
         </div>
@@ -417,35 +417,35 @@ export default function DashboardPage() {
           <div className="bg-emerald-50 border border-emerald-200 p-3 rounded text-center">
             <p className="text-emerald-800 font-semibold">0 – 30 Days</p>
             <p className="text-sm font-bold text-emerald-950 font-mono mt-1">
-              {formatCurrency(data?.aging.bucket0to30 || 0)}
+              {formatCurrency(data?.aging?.bucket0to30 || 0)}
             </p>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 p-3 rounded text-center">
             <p className="text-blue-800 font-semibold">31 – 60 Days</p>
             <p className="text-sm font-bold text-blue-950 font-mono mt-1">
-              {formatCurrency(data?.aging.bucket31to60 || 0)}
+              {formatCurrency(data?.aging?.bucket31to60 || 0)}
             </p>
           </div>
 
           <div className="bg-amber-50 border border-amber-200 p-3 rounded text-center">
             <p className="text-amber-800 font-semibold">61 – 90 Days</p>
             <p className="text-sm font-bold text-amber-950 font-mono mt-1">
-              {formatCurrency(data?.aging.bucket61to90 || 0)}
+              {formatCurrency(data?.aging?.bucket61to90 || 0)}
             </p>
           </div>
 
           <div className="bg-orange-50 border border-orange-200 p-3 rounded text-center">
             <p className="text-orange-800 font-semibold">91 – 180 Days</p>
             <p className="text-sm font-bold text-orange-950 font-mono mt-1">
-              {formatCurrency(data?.aging.bucket91to180 || 0)}
+              {formatCurrency(data?.aging?.bucket91to180 || 0)}
             </p>
           </div>
 
           <div className="bg-red-50 border border-red-200 p-3 rounded text-center col-span-2 sm:col-span-1">
             <p className="text-red-800 font-semibold">181+ Days</p>
             <p className="text-sm font-extrabold text-red-950 font-mono mt-1">
-              {formatCurrency(data?.aging.bucket181Plus || 0)}
+              {formatCurrency(data?.aging?.bucket181Plus || 0)}
             </p>
           </div>
         </div>
@@ -478,41 +478,41 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs">
           <div className="bg-slate-50 border border-slate-200 p-3 rounded">
             <p className="text-slate-500 font-medium">Vouchers Count</p>
-            <p className="text-sm font-bold text-slate-900 mt-1">{data?.driverVouchers.totalVouchers || 0}</p>
+            <p className="text-sm font-bold text-slate-900 mt-1">{data?.driverVouchers?.totalVouchers || 0}</p>
           </div>
 
           <div className="bg-slate-50 border border-slate-200 p-3 rounded">
             <p className="text-slate-500 font-medium">Advance</p>
             <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers.totalAdvance || 0)}
+              {formatCurrency(data?.driverVouchers?.totalAdvance || 0)}
             </p>
           </div>
 
           <div className="bg-slate-50 border border-slate-200 p-3 rounded">
             <p className="text-slate-500 font-medium">Cash</p>
             <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers.totalCash || 0)}
+              {formatCurrency(data?.driverVouchers?.totalCash || 0)}
             </p>
           </div>
 
           <div className="bg-slate-50 border border-slate-200 p-3 rounded">
             <p className="text-slate-500 font-medium">Diesel</p>
             <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers.totalDiesel || 0)}
+              {formatCurrency(data?.driverVouchers?.totalDiesel || 0)}
             </p>
           </div>
 
           <div className="bg-slate-50 border border-slate-200 p-3 rounded">
             <p className="text-slate-500 font-medium">A/c</p>
             <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers.totalAc || 0)}
+              {formatCurrency(data?.driverVouchers?.totalAc || 0)}
             </p>
           </div>
 
           <div className="bg-amber-100/50 border border-amber-300 p-3 rounded font-bold col-span-2 sm:col-span-1">
             <p className="text-amber-900 font-semibold">Total Operational</p>
             <p className="text-sm font-extrabold text-amber-950 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers.totalExpense || 0)}
+              {formatCurrency(data?.driverVouchers?.totalExpense || 0)}
             </p>
           </div>
         </div>
@@ -526,7 +526,7 @@ export default function DashboardPage() {
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Recent Bills</h3>
             <Link href="/billing/bills" className="text-xs text-blue-600 hover:underline">View All →</Link>
           </div>
-          {data?.billing.recentBills && data.billing.recentBills.length > 0 ? (
+          {data?.billing?.recentBills && data.billing.recentBills.length > 0 ? (
             <div className="divide-y divide-slate-100 text-xs">
               {data.billing.recentBills.map((b) => (
                 <div key={b.id} className="py-2.5 flex items-center justify-between">
@@ -556,7 +556,7 @@ export default function DashboardPage() {
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Recent Payment Receipts</h3>
             <Link href="/payments" className="text-xs text-blue-600 hover:underline">View All →</Link>
           </div>
-          {data?.payments.recentPayments && data.payments.recentPayments.length > 0 ? (
+          {data?.payments?.recentPayments && data.payments.recentPayments.length > 0 ? (
             <div className="divide-y divide-slate-100 text-xs">
               {data.payments.recentPayments.map((p) => (
                 <div key={p.id} className="py-2.5 flex items-center justify-between">
