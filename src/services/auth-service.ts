@@ -1,6 +1,6 @@
 // ============================================================
 // AUTHENTICATION & CREDENTIAL SERVICE
-// Handles login verification, brute-force lockout, and authentication audit logs.
+// Handles login verification and authentication audit logs.
 // Plaintext passwords are never stored or logged.
 // ============================================================
 
@@ -10,9 +10,6 @@ import { eq, and } from "drizzle-orm";
 import { verifyPassword } from "@/lib/password";
 import { AppError } from "@/lib/errors";
 import { z } from "zod";
-
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 export interface LoginResult {
   user: {
@@ -28,7 +25,7 @@ export interface LoginResult {
  * Logs authentication events to audit_logs table cleanly without storing passwords.
  */
 export async function logAuthEvent(
-  action: "LOGIN_SUCCESS" | "LOGIN_FAILED" | "LOGOUT" | "ACCOUNT_LOCKED",
+  action: "LOGIN_SUCCESS" | "LOGIN_FAILED" | "LOGOUT",
   userId: string | null,
   email: string,
   firmId: string | null,
@@ -38,7 +35,6 @@ export async function logAuthEvent(
   try {
     let mappedAction: "LOGIN" | "LOGOUT" | "UPDATE" = "LOGIN";
     if (action === "LOGOUT") mappedAction = "LOGOUT";
-    if (action === "ACCOUNT_LOCKED") mappedAction = "UPDATE";
 
     const isUuid = (val?: string | null) => val && z.string().uuid().safeParse(val).success;
     const validUserId = isUuid(userId) ? userId : null;
@@ -66,8 +62,7 @@ export async function logAuthEvent(
 
 /**
  * Verifies user credentials securely.
- * Enforces brute-force protection (lockout after 5 failed attempts for 15m).
- * Returns generic error message to prevent username enumeration.
+ * Returns generic error message ("Invalid email or password") on credential failure.
  */
 export async function authenticateCredentials(
   emailInput: string,
@@ -97,43 +92,19 @@ export async function authenticateCredentials(
     throw new AppError("Account is disabled", "ACCOUNT_DISABLED");
   }
 
-  // Check account lockout
-  const now = new Date();
-  if (userRecord.lockedUntil && new Date(userRecord.lockedUntil) > now) {
-    await logAuthEvent("LOGIN_FAILED", userRecord.id, email, userRecord.firmId, ipAddress, { reason: "ACCOUNT_LOCKED" });
-    throw new AppError("Account is temporarily locked due to multiple failed login attempts. Please try again later.", "ACCOUNT_LOCKED");
-  }
-
   // Verify password hash
   const isValid = verifyPassword(password, userRecord.passwordHash);
 
   if (!isValid) {
-    const newFailedAttempts = userRecord.failedLoginAttempts + 1;
-    let lockedUntil: Date | null = null;
-
-    if (newFailedAttempts >= MAX_FAILED_ATTEMPTS) {
-      lockedUntil = new Date(now.getTime() + LOCKOUT_DURATION_MS);
-      await logAuthEvent("ACCOUNT_LOCKED", userRecord.id, email, userRecord.firmId, ipAddress, { attempts: newFailedAttempts });
-    }
-
-    await db
-      .update(users)
-      .set({
-        failedLoginAttempts: newFailedAttempts,
-        lockedUntil,
-      })
-      .where(eq(users.id, userRecord.id));
-
-    await logAuthEvent("LOGIN_FAILED", userRecord.id, email, userRecord.firmId, ipAddress, { attempts: newFailedAttempts });
+    await logAuthEvent("LOGIN_FAILED", userRecord.id, email, userRecord.firmId, ipAddress, { reason: "INVALID_PASSWORD" });
     throw new AppError("Invalid email or password", "INVALID_CREDENTIALS");
   }
 
-  // Reset failed login attempts on successful authentication
+  // Update last login timestamp on successful authentication
+  const now = new Date();
   await db
     .update(users)
     .set({
-      failedLoginAttempts: 0,
-      lockedUntil: null,
       lastLoginAt: now,
     })
     .where(eq(users.id, userRecord.id));
@@ -150,3 +121,4 @@ export async function authenticateCredentials(
     },
   };
 }
+

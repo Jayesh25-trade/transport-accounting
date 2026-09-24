@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
           success: false,
           error: { message: err.message, code: err.code },
         },
-        { status: err.code === "ACCOUNT_LOCKED" ? 429 : 401 }
+        { status: err.code === "ACCOUNT_DISABLED" ? 403 : 401 }
       );
     }
     console.error("[LOGIN_ERROR]", err?.message || err);

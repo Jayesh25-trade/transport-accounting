@@ -267,8 +267,8 @@ describe("PHASE 4C-2P — 20 SECURITY & AUTHENTICATION TEST SCENARIOS", () => {
     }
   });
 
-  // Scenario 18: Login Brute-Force Rate Limiting & Account Lock
-  test("18. Login Brute-Force Lockout triggers after 5 failed attempts", async () => {
+  // Scenario 18: Multiple Failed Login Attempts Defense (No Account Lockout)
+  test("18. Multiple failed login attempts return INVALID_CREDENTIALS continuously without locking account", async () => {
     const bruteEmail = `brute-${Date.now()}@example.com`;
     const passwordHash = hashPassword("TestPassword123!");
 
@@ -280,12 +280,11 @@ describe("PHASE 4C-2P — 20 SECURITY & AUTHENTICATION TEST SCENARIOS", () => {
         email: bruteEmail,
         passwordHash,
         role: "ACCOUNTANT",
-        failedLoginAttempts: 4, // 1 away from lock
         isActive: true,
       })
       .returning();
 
-    // 5th failed attempt should trigger account lockout
+    // 5th failed attempt should return INVALID_CREDENTIALS
     await assert.rejects(
       async () => {
         await authenticateCredentials(bruteEmail, "WrongPassword!");
@@ -293,13 +292,17 @@ describe("PHASE 4C-2P — 20 SECURITY & AUTHENTICATION TEST SCENARIOS", () => {
       (err: any) => err.code === "INVALID_CREDENTIALS"
     );
 
-    // 6th attempt should be blocked by account lock
+    // 6th attempt should STILL return INVALID_CREDENTIALS (no lockout)
     await assert.rejects(
       async () => {
         await authenticateCredentials(bruteEmail, "WrongPassword!");
       },
-      (err: any) => err.code === "ACCOUNT_LOCKED"
+      (err: any) => err.code === "INVALID_CREDENTIALS"
     );
+
+    // Correct password on 7th attempt should succeed cleanly
+    const result = await authenticateCredentials(bruteEmail, "TestPassword123!");
+    assert.equal(result.user.email, bruteEmail);
 
     await db.delete(users).where(eq(users.id, bruteUser.id));
   });
