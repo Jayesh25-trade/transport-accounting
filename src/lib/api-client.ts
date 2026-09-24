@@ -9,6 +9,7 @@
  * Real auth/session management is a future phase concern.
  */
 
+import { useMemo } from "react";
 import { useFirm } from "@/lib/firm-context";
 
 // ─── Response shape from createApiHandler ───────────────────
@@ -60,20 +61,24 @@ export function useApiClient() {
   // If firms haven't loaded yet, firmUuid will be empty string —
   // callers should guard on `currentFirm === null` before calling.
   const firmUuid = currentFirm?.id ?? "";
+  const ready = !!currentFirm;
 
-  return {
-    get: <T>(url: string) => apiFetch<T>(url, firmUuid),
-    post: <T>(url: string, body: unknown) =>
-      apiFetch<T>(url, firmUuid, {
-        method: "POST",
-        body: JSON.stringify(body),
-      }),
-    put: <T>(url: string, body: unknown) =>
-      apiFetch<T>(url, firmUuid, {
-        method: "PUT",
-        body: JSON.stringify(body),
-      }),
-    firmUuid,
-    ready: !!currentFirm,
-  };
+  return useMemo(
+    () => ({
+      get: <T>(url: string) => apiFetch<T>(url, firmUuid),
+      post: <T>(url: string, body: unknown) =>
+        apiFetch<T>(url, firmUuid, {
+          method: "POST",
+          body: JSON.stringify(body),
+        }),
+      put: <T>(url: string, body: unknown) =>
+        apiFetch<T>(url, firmUuid, {
+          method: "PUT",
+          body: JSON.stringify(body),
+        }),
+      firmUuid,
+      ready,
+    }),
+    [firmUuid, ready]
+  );
 }
