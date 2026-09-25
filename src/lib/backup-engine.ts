@@ -183,3 +183,38 @@ export function getRedactedHost(connectionUrl: string): string {
     return "[REDACTED_HOST]";
   }
 }
+
+/**
+ * Verifies that the local pg_dump client major version matches or exceeds the required major version (default: 18).
+ * Safely parses pg_dump --version without exposing credentials.
+ */
+export function verifyPgDumpClientVersion(expectedMajorVersion: number = 18): {
+  versionString: string;
+  majorVersion: number;
+} {
+  try {
+    const rawVersionStr = execSync("pg_dump --version", { encoding: "utf-8" }).trim();
+    const redactedVersionStr = redactConnectionString(rawVersionStr);
+
+    const match = redactedVersionStr.match(/pg_dump\s+\(PostgreSQL\)\s+(\d+)\./i);
+    const majorVersion = match ? parseInt(match[1], 10) : 0;
+
+    if (majorVersion < expectedMajorVersion) {
+      throw new Error(
+        `CLIENT_VERSION_MISMATCH: Installed pg_dump major version is ${majorVersion} (${redactedVersionStr}), but production database server requires PostgreSQL ${expectedMajorVersion}+ client tools!`
+      );
+    }
+
+    return {
+      versionString: redactedVersionStr,
+      majorVersion,
+    };
+  } catch (err: any) {
+    if (err.message && err.message.startsWith("CLIENT_VERSION_MISMATCH:")) {
+      throw err;
+    }
+    const redactedErr = redactConnectionString(err?.message || String(err));
+    throw new Error(`CLIENT_VERSION_CHECK_FAILED: Unable to verify pg_dump client version! ${redactedErr}`);
+  }
+}
+

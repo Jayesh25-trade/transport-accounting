@@ -10,6 +10,7 @@ import {
   verifySha256Checksum,
   validatePgRestoreList,
   getRedactedHost,
+  verifyPgDumpClientVersion,
 } from "../lib/backup-engine";
 
 describe("Phase 4C-2U-C2 Backup Engine Unit Tests", () => {
@@ -122,5 +123,13 @@ describe("Phase 4C-2U-C2 Backup Engine Unit Tests", () => {
     assert.strictEqual(manifestStr.includes("user"), false);
     assert.strictEqual(manifestStr.includes("pass"), false);
     assert.strictEqual(manifestStr.includes("postgresql://"), false);
+  });
+
+  test("11. Client Version Guard (verifyPgDumpClientVersion)", () => {
+    // Tests that version detection runs safely without exposing credentials
+    // Passes expectedMajorVersion = 1 to work across local environments with pg_dump 14, 15, 16, or 18 installed
+    const ver = verifyPgDumpClientVersion(1);
+    assert.ok(ver.versionString);
+    assert.ok(ver.majorVersion >= 1);
   });
 });

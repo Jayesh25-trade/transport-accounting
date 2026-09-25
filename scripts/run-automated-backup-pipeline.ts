@@ -19,6 +19,7 @@ import {
   validatePgRestoreList,
   redactConnectionString,
   getRedactedHost,
+  verifyPgDumpClientVersion,
   BackupManifest,
 } from "../src/lib/backup-engine";
 import { uploadBackupArchiveToOffsite } from "../src/lib/storage-engine";
@@ -44,6 +45,11 @@ export async function runAutomatedBackupPipeline(): Promise<void> {
 
   console.log(`- Database Host: ${getRedactedHost(directUrl)}`);
   console.log("- Connection Mode: Direct Unpooled PostgreSQL (Verified)");
+
+  // 1b. Preflight: Verify pg_dump Client Major Version (Requires 18+)
+  console.log("\n- Verifying pg_dump Client Tool Version...");
+  const pgDumpVer = verifyPgDumpClientVersion(18);
+  console.log(`  ✅ pg_dump Client Version: ${pgDumpVer.versionString} (Major Version: ${pgDumpVer.majorVersion})`);
 
   // 2. Directory Provisioning
   const now = new Date();
@@ -118,7 +124,7 @@ export async function runAutomatedBackupPipeline(): Promise<void> {
     created_at_utc: isoUtc,
     database_type: "PostgreSQL",
     postgres_server_version: "16 (Production)",
-    pg_dump_client_version: "16",
+    pg_dump_client_version: String(pgDumpVer.majorVersion),
     archive_format: "custom (-Fc)",
     compression_info: "pg_dump custom format compression",
     dump_filename: dumpFilename,
