@@ -19,6 +19,7 @@ import { Button, Badge, EmptyState } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { useMasterList } from "@/lib/use-master-list";
 import { useApiClient, ApiError } from "@/lib/api-client";
+import { useFirm } from "@/lib/firm-context";
 import { Modal } from "@/components/ui/modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -274,6 +275,8 @@ function BillDetailModal({
 function BillsPageContent() {
   const searchParams = useSearchParams();
   const justCreated = searchParams.get("created") === "true";
+  const { currentFirm } = useFirm();
+  const firmIdParam = currentFirm?.id ? `?firmId=${encodeURIComponent(currentFirm.id)}` : "";
 
   const { data: billsList, loading, error } = useMasterList<BillRecord>({
     endpoint: "/api/bills",
@@ -439,7 +442,7 @@ function BillsPageContent() {
             <Eye size={14} />
           </button>
           <a
-            href={`/api/bills/${b.id}/pdf`}
+            href={`/api/bills/${b.id}/pdf${firmIdParam}`}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}

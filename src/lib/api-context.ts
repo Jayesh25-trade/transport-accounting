@@ -39,7 +39,7 @@ export interface ApiHandlerContext {
  * Header key: `x-firm-id`
  */
 export function getActiveFirmId(req: NextRequest): string {
-  const firmId = req.headers.get("x-firm-id");
+  const firmId = req.headers.get("x-firm-id") || req.nextUrl.searchParams.get("firmId");
   if (!firmId) {
     throw new AppError("Missing active firm context header ('x-firm-id')", "FIRM_CONTEXT_REQUIRED");
   }
@@ -70,6 +70,7 @@ export function createApiHandler<T>(
         // If public endpoint, allow unauthenticated access
         if (options?.isPublic) {
           const data = await handler(req, { firmId, params });
+          if (data instanceof Response) return data;
           return NextResponse.json<ApiResponse<T>>({ success: true, data }, { status: 200 });
         }
 
@@ -81,6 +82,7 @@ export function createApiHandler<T>(
             user: { id: "test-user-id", name: "Test User", email: "test@example.com", role: "ADMIN", isActive: true },
             params,
           });
+          if (data instanceof Response) return data;
           return NextResponse.json<ApiResponse<T>>({ success: true, data }, { status: 200 });
         }
 
@@ -104,6 +106,10 @@ export function createApiHandler<T>(
         memberships: sessionCtx.memberships,
         params,
       });
+
+      if (data instanceof Response) {
+        return data;
+      }
 
       return NextResponse.json<ApiResponse<T>>({ success: true, data }, { status: 200 });
     } catch (err: any) {

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Badge } from "@/components/ui/primitives";
 import { useApiClient, ApiError } from "@/lib/api-client";
+import { useFirm } from "@/lib/firm-context";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface BillDetailModalProps {
@@ -13,6 +14,8 @@ interface BillDetailModalProps {
 
 export function BillDetailModal({ billId, onClose }: BillDetailModalProps) {
   const api = useApiClient();
+  const { currentFirm } = useFirm();
+  const firmIdParam = currentFirm?.id ? `?firmId=${encodeURIComponent(currentFirm.id)}` : "";
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +144,7 @@ export function BillDetailModal({ billId, onClose }: BillDetailModalProps) {
 
           <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
             <a
-              href={`/api/bills/${detail.id}/pdf`}
+              href={`/api/bills/${detail.id}/pdf${firmIdParam}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-primary btn-sm inline-flex items-center gap-1.5"
