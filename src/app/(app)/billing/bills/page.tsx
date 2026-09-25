@@ -13,6 +13,7 @@ import {
   Scale,
   DollarSign,
   Printer,
+  Download,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, Badge, EmptyState } from "@/components/ui/primitives";
@@ -427,33 +428,70 @@ function BillsPageContent() {
     },
     {
       key: "actions",
-      label: "",
-      render: (b) => (
-        <div className="flex items-center gap-1">
-          <button
-            className="btn btn-ghost btn-xs text-primary-600 hover:text-primary-800"
-            onClick={(e) => {
-              e.stopPropagation();
-              setViewBillId(b.id);
-            }}
-            title="View Bill Details"
-            id={`bill-view-${b.id}`}
-          >
-            <Eye size={14} />
-          </button>
-          <a
-            href={`/api/bills/${b.id}/pdf${firmIdParam}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="btn btn-ghost btn-xs text-indigo-600 hover:text-indigo-800"
-            title="Generate & Print PDF"
-            id={`bill-pdf-${b.id}`}
-          >
-            <Printer size={14} />
-          </a>
-        </div>
-      ),
+      label: "Actions",
+      align: "right",
+      render: (b) => {
+        const downloadUrl = `/api/bills/${b.id}/pdf${firmIdParam ? firmIdParam + '&download=true' : '?download=true'}`;
+        const printUrl = `/api/bills/${b.id}/pdf${firmIdParam}`;
+
+        return (
+          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+            <button
+              type="button"
+              className="px-2 py-1 rounded text-xs font-semibold
+                         bg-gray-100 dark:bg-gray-800
+                         text-gray-700 dark:text-gray-300
+                         hover:bg-gray-200 dark:hover:bg-gray-700
+                         border border-gray-200 dark:border-gray-700
+                         flex items-center gap-1 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewBillId(b.id);
+              }}
+              title="View Bill Details"
+              id={`bill-view-${b.id}`}
+            >
+              <Eye size={12} />
+              <span>View</span>
+            </button>
+
+            <a
+              href={downloadUrl}
+              download
+              onClick={(e) => e.stopPropagation()}
+              className="px-2 py-1 rounded text-xs font-semibold
+                         bg-emerald-50 dark:bg-emerald-950/40
+                         text-emerald-700 dark:text-emerald-300
+                         border border-emerald-300 dark:border-emerald-700
+                         hover:bg-emerald-100 dark:hover:bg-emerald-900/40
+                         flex items-center gap-1 transition-colors"
+              title="Download Bill PDF Invoice"
+              id={`bill-download-${b.id}`}
+            >
+              <Download size={12} />
+              <span>Download PDF</span>
+            </a>
+
+            <a
+              href={printUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="px-2 py-1 rounded text-xs font-semibold
+                         bg-indigo-50 dark:bg-indigo-950/40
+                         text-indigo-700 dark:text-indigo-300
+                         border border-indigo-300 dark:border-indigo-700
+                         hover:bg-indigo-100 dark:hover:bg-indigo-900/40
+                         flex items-center gap-1 transition-colors"
+              title="Print Bill Invoice"
+              id={`bill-pdf-${b.id}`}
+            >
+              <Printer size={12} />
+              <span>Print</span>
+            </a>
+          </div>
+        );
+      },
     },
   ];
 
