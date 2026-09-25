@@ -100,7 +100,7 @@ export function buildBillInvoiceHtml(bill: any, firm: any): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Transport Bill #${billNumber} — ${firmName}</title>
+  <title>Transport Bill ${billNumber} — ${firmName}</title>
   <style>
     @page {
       size: A4;
@@ -435,7 +435,7 @@ export function buildBillInvoiceHtml(bill: any, firm: any): string {
       <table class="bill-ref-table">
         <tr>
           <td class="lbl">Bill No.&nbsp;</td>
-          <td>:&nbsp; <strong>#${billNumber}</strong></td>
+          <td>:&nbsp; <strong>${billNumber}</strong></td>
         </tr>
         <tr>
           <td class="lbl">Bill Date</td>
@@ -454,7 +454,7 @@ export function buildBillInvoiceHtml(bill: any, firm: any): string {
     </div>
     <div class="ic" style="width:90pt;">
       <div class="ic-lbl">Bill No.</div>
-      <div class="ic-val">#${billNumber}</div>
+      <div class="ic-val">${billNumber}</div>
     </div>
     <div class="ic" style="width:90pt;">
       <div class="ic-lbl">Bill Date</div>
@@ -492,9 +492,9 @@ export function buildBillInvoiceHtml(bill: any, firm: any): string {
         <th>To</th>
         <th style="text-align:right;">N-Wt<br><span style="font-weight:400;">(MT)</span></th>
         <th style="text-align:right;">R-Wt<br><span style="font-weight:400;">(MT)</span></th>
-        <th style="text-align:right;">Rate<br><span style="font-weight:400;">(&#8377;)</span></th>
-        <th style="text-align:right;">Freight<br><span style="font-weight:400;">(&#8377;)</span></th>
-        <th style="text-align:right;">Shortage<br><span style="font-weight:400;">(&#8377;)</span></th>
+        <th style="text-align:right;">Rate &#8377;</th>
+        <th style="text-align:right;">Freight &#8377;</th>
+        <th style="text-align:right;">Shortage &#8377;</th>
       </tr>
     </thead>
     <tbody>
@@ -549,16 +549,16 @@ export function buildBillInvoiceHtml(bill: any, firm: any): string {
       ${debitNoteAmount > 0 ? `
       <div class="acct-row deduct">
         <span class="acct-lbl">Less: Shortage Debit Note</span>
-        <span class="acct-val">( ${fmt(debitNoteAmount)} )</span>
+        <span class="acct-val">- ${fmt(debitNoteAmount)}</span>
       </div>` : ""}
       ${tdsAmount > 0 ? `
       <div class="acct-row deduct">
         <span class="acct-lbl">Less: TDS @ ${tdsPercent}%</span>
-        <span class="acct-val">( ${fmt(tdsAmount)} )</span>
+        <span class="acct-val">- ${fmt(tdsAmount)}</span>
       </div>` : ""}
       <div class="acct-row subtotal">
         <span class="acct-lbl" style="color:#111;font-weight:700;">Total Deductions</span>
-        <span class="acct-val">( ${fmt(debitNoteAmount + tdsAmount)} )</span>
+        <span class="acct-val">- ${fmt(debitNoteAmount + tdsAmount)}</span>
       </div>
       <div class="acct-row net">
         <span class="acct-lbl">NET PAYABLE</span>
