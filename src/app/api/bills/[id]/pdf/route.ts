@@ -4,6 +4,9 @@ import { generateBillPdfBuffer } from "@/services/pdf.service";
 import { getBillById } from "@/services/bill.service";
 import { NextResponse } from "next/server";
 
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 export const GET = createApiHandler(async (req, { firmId, params }) => {
   const { id } = await params;
   const isDownload = req.nextUrl.searchParams.get("download") === "true";

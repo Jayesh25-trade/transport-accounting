@@ -451,13 +451,27 @@ export async function generateBillPdfBuffer(
     if (isServerless) {
       const chromium = (await import("@sparticuz/chromium")).default as any;
       const puppeteerCore = (await import("puppeteer-core")).default as any;
-      const executablePath = await chromium.executablePath();
-      browser = await puppeteerCore.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: chromium.headless,
-      });
+
+      try {
+        const execPath = await chromium.executablePath();
+        browser = await puppeteerCore.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: execPath,
+          headless: chromium.headless,
+        });
+      } catch (err: any) {
+        console.warn("[PDF_SERVICE] Primary chromium launch failed, falling back to release pack tarball:", err?.message || err);
+        const remoteExecPath = await chromium.executablePath(
+          "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar"
+        );
+        browser = await puppeteerCore.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath: remoteExecPath,
+          headless: chromium.headless,
+        });
+      }
     } else {
       let puppeteer;
       try {
