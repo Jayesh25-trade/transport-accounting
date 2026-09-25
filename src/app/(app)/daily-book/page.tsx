@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   Plus,
   Search,
@@ -14,6 +15,7 @@ import {
   Users,
   Scale,
   DollarSign,
+  Lock,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, Badge, EmptyState } from "@/components/ui/primitives";
@@ -59,6 +61,13 @@ export interface DailyEntryRecord {
   truckNumber?: string | null;
   fromLocationName?: string | null;
   toLocationName?: string | null;
+
+  // Billing status — returned by API (joined from trips + bills)
+  // Used to determine whether Edit button should be shown or locked.
+  isBilled?: boolean | null;
+  billId?: string | null;
+  billNumber?: number | null;
+  billStatus?: string | null;
 }
 
 export interface MasterParty {
@@ -723,8 +732,30 @@ function DailyEntryViewModal({
   const fromText = entry.fromLocationName || entry.fromLocationRaw || "—";
   const toText = entry.toLocationName || entry.toLocationRaw || "—";
 
+  // Determine lock state for this entry
+  const isPostedBilled = entry.isBilled === true && entry.billStatus === "POSTED";
+
   return (
     <div className="space-y-4">
+      {/* Posted-Bill Lock Notice */}
+      {isPostedBilled && (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700">
+          <Lock size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-amber-800 dark:text-amber-200">
+              Billed in Bill #{entry.billNumber} — Editing Locked
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+              This trip is included in a POSTED bill. Use{" "}
+              <Link href="/billing/bills" className="underline font-semibold hover:text-amber-900">
+                Bill Edit
+              </Link>{" "}
+              to make corrections.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Banner */}
       <div className="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
         <div>
@@ -1067,32 +1098,61 @@ export default function DailyBookPage() {
     {
       key: "actions",
       label: "",
-      render: (e) => (
-        <div className="flex items-center justify-end gap-1">
-          <button
-            className="btn btn-ghost btn-xs text-gray-500 hover:text-gray-800"
-            onClick={(ev) => {
-              ev.stopPropagation();
-              setModal({ mode: "view", entry: e });
-            }}
-            title="View details"
-            id={`daily-view-${e.id}`}
-          >
-            <Eye size={13} />
-          </button>
-          <button
-            className="btn btn-ghost btn-xs text-primary-600 hover:text-primary-800"
-            onClick={(ev) => {
-              ev.stopPropagation();
-              setModal({ mode: "edit", entry: e });
-            }}
-            title="Edit entry"
-            id={`daily-edit-${e.id}`}
-          >
-            <Pencil size={13} />
-          </button>
-        </div>
-      ),
+      render: (e) => {
+        // A trip included in a POSTED bill is fully locked.
+        // Show a lock indicator + link to Bills page instead of the Edit button.
+        const isPostedBilled = e.isBilled === true && e.billStatus === "POSTED";
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <button
+              className="btn btn-ghost btn-xs text-gray-500 hover:text-gray-800"
+              onClick={(ev) => {
+                ev.stopPropagation();
+                setModal({ mode: "view", entry: e });
+              }}
+              title="View details"
+              id={`daily-view-${e.id}`}
+            >
+              <Eye size={13} />
+            </button>
+
+            {isPostedBilled ? (
+              // ── POSTED-BILL LOCK INDICATOR ──────────────────────────────
+              // The edit button is replaced with a lock icon and a link
+              // to the Bills page where Bill Edit can be initiated.
+              <Link
+                href="/billing/bills"
+                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold
+                           bg-amber-50 dark:bg-amber-950/40
+                           text-amber-700 dark:text-amber-300
+                           border border-amber-300 dark:border-amber-700
+                           hover:bg-amber-100 dark:hover:bg-amber-900/40
+                           transition-colors"
+                title={`Billed in Bill #${e.billNumber} — Use Bill Edit to make corrections`}
+                id={`daily-locked-${e.id}`}
+                onClick={(ev) => ev.stopPropagation()}
+              >
+                <Lock size={11} />
+                <span>Bill #{e.billNumber}</span>
+              </Link>
+            ) : (
+              // ── NORMAL EDIT BUTTON (unbilled or DRAFT-billed trips) ────
+              <button
+                className="btn btn-ghost btn-xs text-primary-600 hover:text-primary-800"
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  setModal({ mode: "edit", entry: e });
+                }}
+                title="Edit entry"
+                id={`daily-edit-${e.id}`}
+              >
+                <Pencil size={13} />
+              </button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 

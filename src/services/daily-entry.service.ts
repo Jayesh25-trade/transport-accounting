@@ -1,11 +1,11 @@
 import { eq, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { dailyEntries, driverVouchers, trips, parties, companies, trucks, locations } from "../db/schema";
+import { dailyEntries, driverVouchers, trips, bills, parties, companies, trucks, locations } from "../db/schema";
 import { dailyEntryInputSchema, type DailyEntryInput } from "../validators/daily-entry";
 import { verifyPartyInFirm, verifyCompanyInFirm, verifyTruckInFirm, verifyLocationInFirm } from "./firm.service";
 import { recordAuditLog } from "./audit.service";
-import { EntityNotFoundError } from "../lib/errors";
+import { EntityNotFoundError, BilledTripEditError } from "../lib/errors";
 
 export async function createDailyEntry(
   db: NodePgDatabase<any>,
@@ -123,6 +123,34 @@ export async function updateDailyEntry(
       throw new EntityNotFoundError("DailyEntry", entryId);
     }
     const existing = existingList[0];
+
+    // ── POSTED-BILL GUARD ──────────────────────────────────────────────────
+    // Safety Fix: If this daily entry has a corresponding trip that is
+    // included in a POSTED bill, reject ALL edits unconditionally.
+    // Frontend shows a lock; backend enforces it here so API calls also fail.
+    // UI-only disabling is NOT sufficient (direct API attack must also be blocked).
+    //
+    // Only POSTED bills are locked. DRAFT bills allow edits (not yet finalized).
+    // CANCELLED bills are treated like POSTED (accounting history must not change).
+    const tripBillStatus = await tx
+      .select({
+        isBilled: trips.isBilled,
+        billId: trips.billId,
+        billNumber: bills.billNumber,
+        billStatus: bills.status,
+      })
+      .from(trips)
+      .leftJoin(bills, eq(trips.billId, bills.id))
+      .where(eq(trips.dailyEntryId, entryId))
+      .limit(1);
+
+    if (tripBillStatus.length > 0) {
+      const tripBill = tripBillStatus[0];
+      if (tripBill.isBilled && tripBill.billStatus === "POSTED") {
+        throw new BilledTripEditError(tripBill.billNumber ?? "unknown");
+      }
+    }
+    // ── END POSTED-BILL GUARD ───────────────────────────────────────────────
 
     // 2. Verify firm context for updated entities
     if (input.partyId) await verifyPartyInFirm(tx, input.partyId, input.firmId);
@@ -249,6 +277,11 @@ export async function listDailyEntries(db: NodePgDatabase<any>, firmId: string) 
       truckNumber: trucks.truckNumber,
       fromLocationName: fromLocations.name,
       toLocationName: toLocations.name,
+      // Billing status — used by frontend to lock edit button
+      isBilled: trips.isBilled,
+      billId: trips.billId,
+      billNumber: bills.billNumber,
+      billStatus: bills.status,
     })
     .from(dailyEntries)
     .leftJoin(parties, eq(dailyEntries.partyId, parties.id))
@@ -256,6 +289,8 @@ export async function listDailyEntries(db: NodePgDatabase<any>, firmId: string) 
     .leftJoin(trucks, eq(dailyEntries.truckId, trucks.id))
     .leftJoin(fromLocations, eq(dailyEntries.fromLocationId, fromLocations.id))
     .leftJoin(toLocations, eq(dailyEntries.toLocationId, toLocations.id))
+    .leftJoin(trips, eq(dailyEntries.id, trips.dailyEntryId))
+    .leftJoin(bills, eq(trips.billId, bills.id))
     .where(eq(dailyEntries.firmId, firmId))
     .orderBy(dailyEntries.entryDate, dailyEntries.srNo);
 }
@@ -299,6 +334,11 @@ export async function getDailyEntryById(db: NodePgDatabase<any>, entryId: string
       truckNumber: trucks.truckNumber,
       fromLocationName: fromLocations.name,
       toLocationName: toLocations.name,
+      // Billing status — used by frontend to lock edit button
+      isBilled: trips.isBilled,
+      billId: trips.billId,
+      billNumber: bills.billNumber,
+      billStatus: bills.status,
     })
     .from(dailyEntries)
     .leftJoin(parties, eq(dailyEntries.partyId, parties.id))
@@ -306,6 +346,8 @@ export async function getDailyEntryById(db: NodePgDatabase<any>, entryId: string
     .leftJoin(trucks, eq(dailyEntries.truckId, trucks.id))
     .leftJoin(fromLocations, eq(dailyEntries.fromLocationId, fromLocations.id))
     .leftJoin(toLocations, eq(dailyEntries.toLocationId, toLocations.id))
+    .leftJoin(trips, eq(dailyEntries.id, trips.dailyEntryId))
+    .leftJoin(bills, eq(trips.billId, bills.id))
     .where(and(eq(dailyEntries.id, entryId), eq(dailyEntries.firmId, firmId)))
     .limit(1);
 

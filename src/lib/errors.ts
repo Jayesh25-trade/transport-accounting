@@ -66,3 +66,18 @@ export class ConcurrencyError extends AppError {
     super(message, "CONCURRENCY_ERROR");
   }
 }
+
+/**
+ * Thrown when a user attempts to edit a Daily Book entry that is already
+ * included in a POSTED bill. Returns HTTP 409 Conflict.
+ * The correct path is to use the Bill Edit workflow.
+ */
+export class BilledTripEditError extends AppError {
+  constructor(billNumber: number | string) {
+    super(
+      `This trip is included in a POSTED bill (Bill #${billNumber}). ` +
+      `Daily Book editing is locked. Use Bill Edit to make corrections to posted bills.`,
+      "BILLED_TRIP_EDIT_LOCKED"
+    );
+  }
+}

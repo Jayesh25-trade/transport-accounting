@@ -112,6 +112,7 @@ export function createApiHandler<T>(
         if (err.code === "ENTITY_NOT_FOUND") status = 404;
         if (err.code === "UNAUTHENTICATED") status = 401;
         if (err.code === "FORBIDDEN_ROLE_ACCESS" || err.code === "FORBIDDEN_FIRM_ACCESS") status = 403;
+        if (err.code === "BILLED_TRIP_EDIT_LOCKED") status = 409;
 
         return NextResponse.json<ApiResponse>(
           {

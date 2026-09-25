@@ -350,26 +350,40 @@ export async function editBill(
     const currentBill = billLockQuery.rows[0];
     const existingReceivedAmount = Number(currentBill.received_amount || 0);
 
-    // 2. Fetch trip details for recalculation
+    // 2. Fetch trip details from bill_items snapshot (NOT from live daily_entries).
+    //    bill_items captures the authoritative state at the time the bill was originally
+    //    created/posted. Using daily_entries directly would allow a mutated Daily Book
+    //    entry to silently change the recalculation baseline — which is the bug we fix here.
+    //
+    //    For editBill() the recalculation is re-done from the snapshotted weights/rates.
+    //    The customer rule (shortage, TDS) is still resolved live — this is intentional:
+    //    if a rule was corrected it should be applied on bill re-edit.
     const tripRows = await tx
       .select({
         tripId: trips.id,
         firmId: trips.firmId,
         partyId: trips.partyId,
         isReceived: trips.isReceived,
-        entryDate: dailyEntries.entryDate,
-        truckNumberRaw: dailyEntries.truckNumberRaw,
-        lrNumber: dailyEntries.lrNumber,
-        fromLocationRaw: dailyEntries.fromLocationRaw,
-        toLocationRaw: dailyEntries.toLocationRaw,
-        nWeight: dailyEntries.nWeight,
-        rWeight: dailyEntries.rWeight,
-        customerRate: dailyEntries.customerRate,
-        rate: dailyEntries.rate,
+        // Use snapshot values from bill_items — NOT mutable daily_entries columns
+        nWeight: billItems.nWeight,
+        rWeight: billItems.rWeight,
+        appliedRate: billItems.appliedRate,
+        // customerRate / rate fallback: use the snapshotted appliedRate
+        // (bill_items.appliedRate already resolved customerRate ?? rate at creation time)
       })
       .from(trips)
-      .innerJoin(dailyEntries, eq(trips.dailyEntryId, dailyEntries.id))
+      .innerJoin(billItems, and(eq(billItems.tripId, trips.id), eq(billItems.billId, input.billId)))
       .where(and(eq(trips.firmId, input.firmId), inArray(trips.id, input.tripIds)));
+
+    // Validate: all requested tripIds must be present in bill_items for this bill.
+    // If a tripId is missing from bill_items it means the caller is trying to add
+    // a foreign trip to a bill that doesn't own it — this is an invalid edit.
+    if (tripRows.length !== input.tripIds.length) {
+      throw new DomainValidationError(
+        `One or more requested trip IDs are not part of bill ${input.billId}. ` +
+        `Bill Edit can only recalculate trips already linked to this bill.`
+      );
+    }
 
     // 3. Fetch customer rules for ALL distinct parties in these trips (per-trip rule resolution)
     const editDistinctPartyIds = [...new Set(tripRows.map((t) => t.partyId).filter(Boolean) as string[])];
@@ -393,7 +407,9 @@ export async function editBill(
     const preparedItems = tripRows.map((trip) => {
       const tripRule = (trip.partyId ? editRulesByPartyId.get(trip.partyId) : null) ?? editBillPartyRule ?? null;
 
-      const rateToUse = Number(trip.customerRate || trip.rate || 0);
+      // Use the snapshotted appliedRate from bill_items as the rate basis.
+      // This is the rate that was used at billing time (resolved from customerRate ?? rate).
+      const rateToUse = Number(trip.appliedRate || 0);
       const freightBasis = tripRule?.freightBasis || "R_WEIGHT";
 
       const freightRes = calculateFreight({
