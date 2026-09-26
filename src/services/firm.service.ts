@@ -145,3 +145,31 @@ export async function verifyBillInFirm(
     );
   }
 }
+
+export async function getFirmDetails(
+  dbOrTx: NodePgDatabase<any> | PgTransaction<any, any, any>,
+  firmId: string
+) {
+  const result = await dbOrTx
+    .select({
+      id: firms.id,
+      name: firms.name,
+      code: firms.code,
+      pan: firms.pan,
+      phone: firms.phone,
+      address: firms.address,
+      isActive: firms.isActive,
+      createdAt: firms.createdAt,
+      updatedAt: firms.updatedAt,
+    })
+    .from(firms)
+    .where(eq(firms.id, firmId))
+    .limit(1);
+
+  if (result.length === 0) {
+    throw new EntityNotFoundError("Firm", firmId);
+  }
+
+  return result[0];
+}
+
