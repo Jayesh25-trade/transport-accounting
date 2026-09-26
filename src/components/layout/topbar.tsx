@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { Bell, Search, HelpCircle, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Bell, Search, HelpCircle, Loader2, Menu } from "lucide-react";
 import { useFirm } from "@/lib/firm-context";
 
 const FIRM_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#3b82f6"];
@@ -10,9 +10,41 @@ export function Topbar() {
   const { currentFirm, firms, loading } = useFirm();
   const firmIdx = firms.findIndex((f) => f.id === currentFirm?.id);
   const color = FIRM_COLORS[firmIdx % FIRM_COLORS.length] ?? "#6366f1";
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleToggle = () => setMobileMenuOpen((prev) => !prev);
+    const handleClose = () => setMobileMenuOpen(false);
+
+    window.addEventListener("toggle-mobile-sidebar", handleToggle);
+    window.addEventListener("close-mobile-sidebar", handleClose);
+
+    return () => {
+      window.removeEventListener("toggle-mobile-sidebar", handleToggle);
+      window.removeEventListener("close-mobile-sidebar", handleClose);
+    };
+  }, []);
+
+  const toggleMobileSidebar = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("toggle-mobile-sidebar"));
+    }
+  };
 
   return (
     <header className="topbar">
+      {/* Mobile Menu Toggle */}
+      <button
+        type="button"
+        onClick={toggleMobileSidebar}
+        className="btn btn-ghost btn-sm w-8 h-8 p-0 rounded-lg justify-center md:hidden"
+        aria-label="Toggle mobile menu"
+        aria-expanded={mobileMenuOpen}
+        id="mobile-menu-toggle"
+      >
+        <Menu size={20} />
+      </button>
+
       {/* Search */}
       <div className="flex-1 max-w-sm">
         <div className="relative">

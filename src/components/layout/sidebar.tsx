@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   Settings2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FirmSwitcher } from "./firm-switcher";
@@ -112,6 +113,12 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarItemProps) {
     ? pathname === item.href || pathname.startsWith(item.href + "/")
     : false;
 
+  const handleLinkClick = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("close-mobile-sidebar"));
+    }
+  };
+
   if (item.children) {
     const anyChildActive = item.children.some(
       (c) => c.href && (pathname === c.href || pathname.startsWith(c.href + "/"))
@@ -158,6 +165,7 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarItemProps) {
   return (
     <Link
       href={item.href!}
+      onClick={handleLinkClick}
       className={cn("sidebar-item", isActive && "active")}
       style={{ paddingLeft: depth ? `${0.875 + depth * 0.75}rem` : undefined }}
       title={collapsed ? item.label : undefined}
@@ -175,53 +183,95 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarItemProps) {
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const handleToggle = () => setMobileOpen((prev) => !prev);
+    const handleClose = () => setMobileOpen(false);
+
+    window.addEventListener("toggle-mobile-sidebar", handleToggle);
+    window.addEventListener("close-mobile-sidebar", handleClose);
+
+    return () => {
+      window.removeEventListener("toggle-mobile-sidebar", handleToggle);
+      window.removeEventListener("close-mobile-sidebar", handleClose);
+    };
+  }, []);
+
+  const closeMobileSidebar = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("close-mobile-sidebar"));
+    }
+  };
 
   return (
-    <aside className={cn("sidebar", collapsed && "collapsed")}>
-      {/* Logo */}
-      <div className="sidebar-logo">
-        <div className="logo-icon">
-          <Truck size={16} color="#fff" />
-        </div>
-        {!collapsed && (
-          <span className="truncate leading-tight">
-            Transport<br />
-            <span className="text-gray-400 font-normal text-xs">Management</span>
-          </span>
-        )}
-      </div>
-
-      {/* Firm Switcher */}
-      {!collapsed && <FirmSwitcher />}
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2">
-        {NAV_ITEMS.map((item) => (
-          <SidebarNavItem
-            key={item.href ?? item.label}
-            item={item}
-            collapsed={collapsed}
-          />
-        ))}
-      </nav>
-
-      {/* Collapse Toggle */}
-      <div className="border-t border-white/5 p-2">
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="sidebar-item w-full"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? (
-            <ChevronRight className="item-icon" />
-          ) : (
-            <>
-              <ChevronLeft className="item-icon" />
-              <span>Collapse</span>
-            </>
+    <>
+      {mobileOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={closeMobileSidebar}
+          aria-hidden="true"
+        />
+      )}
+      <aside className={cn("sidebar", collapsed && "collapsed", mobileOpen && "mobile-open")}>
+        {/* Logo */}
+        <div className="sidebar-logo justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="logo-icon">
+              <Truck size={16} color="#fff" />
+            </div>
+            {!collapsed && (
+              <span className="truncate leading-tight">
+                Transport<br />
+                <span className="text-gray-400 font-normal text-xs">Management</span>
+              </span>
+            )}
+          </div>
+          {/* Mobile close button */}
+          {mobileOpen && (
+            <button
+              onClick={closeMobileSidebar}
+              className="p-1 text-gray-400 hover:text-white rounded-md md:hidden"
+              aria-label="Close menu"
+            >
+              <X size={18} />
+            </button>
           )}
-        </button>
-      </div>
-    </aside>
+        </div>
+
+        {/* Firm Switcher */}
+        {!collapsed && <FirmSwitcher />}
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-2">
+          {NAV_ITEMS.map((item) => (
+            <SidebarNavItem
+              key={item.href ?? item.label}
+              item={item}
+              collapsed={collapsed}
+            />
+          ))}
+        </nav>
+
+        {/* Collapse Toggle */}
+        <div className="border-t border-white/5 p-2">
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="sidebar-item w-full"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? (
+              <ChevronRight className="item-icon" />
+            ) : (
+              <>
+                <ChevronLeft className="item-icon" />
+                <span>Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
+

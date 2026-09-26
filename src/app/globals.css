@@ -522,3 +522,55 @@ body {
 .text-warning { color: var(--warning); }
 .text-danger  { color: var(--danger); }
 .text-brand   { color: var(--brand-600); }
+
+/* ─── Responsive Mobile Navigation (< 768px) ─────────────────── */
+@media (max-width: 768px) {
+  .app-shell {
+    position: relative;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 50;
+    width: 260px !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar.collapsed {
+    width: 260px !important;
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 40;
+    animation: fadeIn 0.2s ease forwards;
+  }
+
+  .main-area {
+    width: 100%;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .topbar {
+    padding: 0 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .page-content {
+    padding: 0.875rem;
+  }
+}
+
