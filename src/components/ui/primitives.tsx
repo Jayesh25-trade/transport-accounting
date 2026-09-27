@@ -119,12 +119,12 @@ export function Panel({
   className,
 }: PanelProps) {
   return (
-    <div className={cn("panel mb-6", className)}>
+    <div className={cn("panel mb-6 border border-[#D8D5CE] bg-white rounded-2xl shadow-xs p-6", className)}>
       {(title || subtitle || action) && (
         <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
           <div>
-            {title && <h3 className="panel-title">{title}</h3>}
-            {subtitle && <p className="panel-subtitle">{subtitle}</p>}
+            {title && <h3 className="panel-title text-base font-bold text-[#1A1D20]">{title}</h3>}
+            {subtitle && <p className="panel-subtitle text-xs text-[#5F6368]">{subtitle}</p>}
           </div>
           {action && <div className="flex items-center gap-2">{action}</div>}
         </div>
@@ -149,17 +149,17 @@ export function EmptyState({
   action,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center border border-dashed border-[#D8D5CE] rounded-2xl bg-[#FAF8F5]">
       {Icon && (
-        <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-          <Icon size={24} className="text-gray-400" />
+        <div className="w-12 h-12 rounded-xl bg-white border border-[#D8D5CE] flex items-center justify-center mb-3 text-[#7A7F85]">
+          <Icon size={20} />
         </div>
       )}
-      <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-1">
+      <h3 className="text-sm font-bold text-[#1A1D20] mb-1">
         {title}
       </h3>
       {description && (
-        <p className="text-sm text-gray-500 max-w-xs mb-4">{description}</p>
+        <p className="text-xs text-[#5F6368] max-w-xs mb-4">{description}</p>
       )}
       {action}
     </div>
@@ -170,7 +170,7 @@ export function EmptyState({
 export function Divider({ className }: { className?: string }) {
   return (
     <hr
-      className={cn("border-0 border-t border-gray-200 dark:border-gray-800 my-4", className)}
+      className={cn("border-0 border-t border-[#D8D5CE] my-4", className)}
     />
   );
 }

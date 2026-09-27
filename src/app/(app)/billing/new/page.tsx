@@ -3,28 +3,14 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  FileText,
-  Calculator,
   Search,
-  CheckCircle2,
-  Clock,
-  ArrowLeft,
-  AlertCircle,
-  Scale,
-  DollarSign,
-  Check,
-  X,
-  Building2,
-  Users,
-  Truck as TruckIcon,
-  ShieldCheck,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, Badge, EmptyState } from "@/components/ui/primitives";
 import { useMasterList } from "@/lib/use-master-list";
 import { useApiClient, ApiError } from "@/lib/api-client";
 import { useFirm } from "@/lib/firm-context";
-import { Modal, Field, FormGrid } from "@/components/ui/modal";
+import { Modal, Field } from "@/components/ui/modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────
@@ -77,19 +63,6 @@ interface MasterTruck {
   truckNumber: string;
 }
 
-interface CustomerRule {
-  partyId: string;
-  freightBasis: string;
-  shortageApplicable: boolean;
-  shortageAllowanceType: string | null;
-  shortageAllowanceValue: string | null;
-  shortageRuleType: string | null;
-  materialRatePerTon: string | null;
-  tdsApplicable: boolean;
-  tdsSection: string | null;
-  tdsPercentage: string | null;
-}
-
 interface PreviewItem {
   tripId: string;
   srNo: number;
@@ -135,10 +108,10 @@ function formatTons(val: number | string | null | undefined): string {
 export default function NewBillPage() {
   const router = useRouter();
   const api = useApiClient();
-  const { currentFirm, loading: firmLoading } = useFirm();
+  const { currentFirm } = useFirm();
 
   // Load trips and masters
-  const { data: allTrips, loading: tripsLoading, refresh: refreshTrips } = useMasterList<TripRecord>({
+  const { data: allTrips, loading: tripsLoading } = useMasterList<TripRecord>({
     endpoint: "/api/trips",
   });
   const { data: parties } = useMasterList<MasterParty>({ endpoint: "/api/parties" });
@@ -328,7 +301,7 @@ export default function NewBillPage() {
   }, [selectedTripIds, unbilledTrips]);
 
   return (
-    <div className="animate-fade-in space-y-4 pb-20">
+    <div className="animate-fade-in space-y-4 pb-24 text-[#1A1D20]">
       <PageHeader
         title="Create Bill"
         subtitle="Generate a new customer invoice from received trips"
@@ -340,7 +313,6 @@ export default function NewBillPage() {
           <Button
             variant="secondary"
             size="sm"
-            icon={ArrowLeft}
             onClick={() => router.push("/billing/bills")}
           >
             Back to Bills
@@ -349,10 +321,9 @@ export default function NewBillPage() {
       />
 
       {/* Top Configuration Card */}
-      <div className="card p-4 border-primary-200 dark:border-primary-900/40 bg-primary-50/20 dark:bg-primary-950/10 space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText size={16} className="text-primary-600 dark:text-primary-400" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+      <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs space-y-3">
+        <div className="mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#5F6368]">
             Bill Invoice Setup
           </h3>
         </div>
@@ -391,7 +362,7 @@ export default function NewBillPage() {
                 value={tdsSection}
                 onChange={(e) => setTdsSection(e.target.value)}
                 placeholder="94C"
-                className="form-input uppercase font-mono"
+                className="form-input uppercase font-mono-nums"
                 id="bill-setup-tds-section"
               />
             </Field>
@@ -406,10 +377,10 @@ export default function NewBillPage() {
                   value={tdsPercentage}
                   onChange={(e) => setTdsPercentage(e.target.value)}
                   placeholder="1.0"
-                  className="form-input font-mono pr-8"
+                  className="form-input font-mono-nums pr-8"
                   id="bill-setup-tds-pct"
                 />
-                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#7A7F85]">
                   %
                 </span>
               </div>
@@ -418,8 +389,7 @@ export default function NewBillPage() {
         </div>
 
         {/* Informational Customer-wise shortage note */}
-        <div className="flex items-center gap-2 text-xs text-primary-700 dark:text-primary-300 pt-1 border-t border-primary-100 dark:border-primary-900/30">
-          <ShieldCheck size={14} className="flex-shrink-0 text-primary-600" />
+        <div className="text-xs text-[#5F6368] pt-2 border-t border-[#EFECE6]">
           <span>
             <strong>Multi-Customer Support:</strong> Selected trips belonging to different loading parties will have their shortage rules resolved per-customer by the backend automatically.
           </span>
@@ -428,23 +398,20 @@ export default function NewBillPage() {
 
       {/* Error banner */}
       {previewError && (
-        <div className="card border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={16} className="text-red-600 dark:text-red-400" />
-            <p className="text-xs text-red-600 dark:text-red-400">{previewError}</p>
-          </div>
-          <button onClick={() => setPreviewError(null)} className="text-red-500">
-            <X size={14} />
+        <div className="rounded-xl border border-[#D32F2F]/30 bg-[#FDEDED] p-3.5 flex items-center justify-between text-xs text-[#D32F2F]">
+          <p>{previewError}</p>
+          <button onClick={() => setPreviewError(null)} className="font-bold">
+            Close
           </button>
         </div>
       )}
 
       {/* Filter Toolbar */}
-      <div className="card p-3.5 space-y-3">
+      <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 space-y-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A7F85]" />
             <input
               type="search"
               placeholder="Search truck, party, company, LR, route…"
@@ -526,7 +493,7 @@ export default function NewBillPage() {
         </div>
 
         {/* Selection Actions & Eligibility Counts */}
-        <div className="flex flex-wrap items-center justify-between text-xs pt-2 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex flex-wrap items-center justify-between text-xs pt-2 border-t border-[#EFECE6]">
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
@@ -544,13 +511,13 @@ export default function NewBillPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-3 text-gray-500">
-            <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 size={13} /> {eligibleCount} Received (Billable)
+          <div className="flex items-center gap-3 text-[#5F6368]">
+            <span className="font-semibold text-[#2E7D32]">
+              {eligibleCount} Received (Billable)
             </span>
             {pendingCount > 0 && (
-              <span className="flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
-                <Clock size={13} /> {pendingCount} Pending (Unbillable)
+              <span className="font-semibold text-[#ED6C02]">
+                {pendingCount} Pending (Unbillable)
               </span>
             )}
           </div>
@@ -558,9 +525,9 @@ export default function NewBillPage() {
       </div>
 
       {/* Trips Selection Table */}
-      <div className="card overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700 font-semibold text-gray-500 uppercase tracking-wider">
+      <div className="rounded-2xl border border-[#D8D5CE] bg-white overflow-hidden shadow-xs">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead className="bg-[#FAF8F5] border-b border-[#D8D5CE] font-semibold text-[#5F6368] uppercase tracking-wider text-[11px]">
             <tr>
               <th className="p-3 w-10 text-center">Select</th>
               <th className="p-3">Sr No</th>
@@ -575,10 +542,10 @@ export default function NewBillPage() {
               <th className="p-3 text-center">POCH Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody className="divide-y divide-[#EFECE6]">
             {tripsLoading ? (
               <tr>
-                <td colSpan={11} className="p-8 text-center text-gray-400">
+                <td colSpan={11} className="p-8 text-center text-[#7A7F85]">
                   Loading trips…
                 </td>
               </tr>
@@ -586,7 +553,6 @@ export default function NewBillPage() {
               <tr>
                 <td colSpan={11} className="p-8 text-center">
                   <EmptyState
-                    icon={FileText}
                     title="No unbilled trips available"
                     description="Record trips in the Daily Book and mark them as RECEIVED to bill them."
                   />
@@ -608,10 +574,10 @@ export default function NewBillPage() {
                     onClick={() => toggleTripSelection(t.id, isEligible)}
                     className={`transition-colors cursor-pointer ${
                       isSelected
-                        ? "bg-primary-50/50 dark:bg-primary-950/20"
+                        ? "bg-[#FDF2F0]"
                         : !isEligible
-                        ? "opacity-60 bg-gray-50/30 dark:bg-gray-900/10 cursor-not-allowed"
-                        : "hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                        ? "opacity-60 bg-[#FAF8F5] cursor-not-allowed"
+                        : "hover:bg-[#FAF8F5]"
                     }`}
                   >
                     <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
@@ -620,25 +586,25 @@ export default function NewBillPage() {
                         checked={isSelected}
                         disabled={!isEligible}
                         onChange={() => toggleTripSelection(t.id, isEligible)}
-                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-40"
+                        className="rounded border-[#D8D5CE] text-[#E05638] focus:ring-[#E05638] disabled:opacity-40"
                         id={`trip-checkbox-${t.id}`}
                       />
                     </td>
-                    <td className="p-3 font-mono font-semibold text-gray-500">#{t.srNo}</td>
+                    <td className="p-3 font-mono-nums font-semibold text-[#5F6368]">#{t.srNo}</td>
                     <td className="p-3 whitespace-nowrap">{formatDate(t.entryDate)}</td>
-                    <td className="p-3 font-mono font-semibold text-gray-900 dark:text-gray-100">
+                    <td className="p-3 font-mono-nums font-bold text-[#1A1D20]">
                       {truckText}
                     </td>
-                    <td className="p-3 text-gray-600 dark:text-gray-400">
+                    <td className="p-3 text-[#5F6368]">
                       {fromText} → {toText}
                     </td>
-                    <td className="p-3 text-right font-mono">{formatTons(t.nWeight)}</td>
-                    <td className="p-3 text-right font-mono">{formatTons(t.rWeight)}</td>
-                    <td className="p-3 font-medium text-primary-600 dark:text-primary-400">
+                    <td className="p-3 text-right font-mono-nums">{formatTons(t.nWeight)}</td>
+                    <td className="p-3 text-right font-mono-nums">{formatTons(t.rWeight)}</td>
+                    <td className="p-3 font-bold text-[#E05638]">
                       {partyText}
                     </td>
-                    <td className="p-3 text-gray-600 dark:text-gray-400">{companyText}</td>
-                    <td className="p-3 text-right font-mono">
+                    <td className="p-3 text-[#5F6368]">{companyText}</td>
+                    <td className="p-3 text-right font-mono-nums font-semibold">
                       {formatCurrency(t.customerRate || t.rate || 0)}
                     </td>
                     <td className="p-3 text-center">
@@ -655,32 +621,31 @@ export default function NewBillPage() {
       </div>
 
       {/* Floating Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-t border-gray-200 dark:border-gray-800 p-3 shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur border-t border-[#D8D5CE] p-3.5 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4">
           <div className="flex items-center gap-4">
             <div>
-              <span className="text-xs text-gray-400 block font-semibold uppercase">
+              <span className="text-[10px] text-[#7A7F85] block font-bold uppercase tracking-wider">
                 Selected Trips
               </span>
-              <span className="text-lg font-black font-mono text-primary-600 dark:text-primary-400">
+              <span className="text-lg font-bold font-mono-nums text-[#E05638]">
                 {selectedSummary.count} {selectedSummary.count === 1 ? "Trip" : "Trips"}
               </span>
             </div>
-            <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" />
+            <div className="h-8 w-px bg-[#D8D5CE]" />
             <div>
-              <span className="text-xs text-gray-400 block font-semibold uppercase">
+              <span className="text-[10px] text-[#7A7F85] block font-bold uppercase tracking-wider">
                 Total Weight
               </span>
-              <span className="text-sm font-bold font-mono text-gray-800 dark:text-gray-200">
+              <span className="text-sm font-bold font-mono-nums text-[#1A1D20]">
                 N: {selectedSummary.nWt.toFixed(3)} T | R: {selectedSummary.rWt.toFixed(3)} T
               </span>
             </div>
           </div>
 
           <Button
-            variant="primary"
+            variant="coral"
             size="md"
-            icon={Calculator}
             onClick={handleCalculatePreview}
             disabled={selectedTripIds.size === 0 || !selectedPartyId || calculating}
             id="bill-calculate-btn"
@@ -694,88 +659,88 @@ export default function NewBillPage() {
       <Modal
         open={showPreviewModal}
         onClose={() => setShowPreviewModal(false)}
-        title="Bill Calculation Preview (Authoritative Backend Calculations)"
+        title="Bill Calculation Preview"
         size="lg"
       >
         {previewData && (
-          <div className="space-y-4">
+          <div className="space-y-4 text-[#1A1D20]">
             {/* Financial Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700">
-                <span className="text-[10px] font-bold text-gray-400 uppercase block">Subtotal Freight</span>
-                <span className="text-sm font-black font-mono text-gray-900 dark:text-gray-100">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-3.5 rounded-xl bg-white border border-[#D8D5CE] shadow-xs">
+                <span className="text-[10px] font-bold text-[#7A7F85] uppercase block">Subtotal Freight</span>
+                <span className="text-sm font-bold font-mono-nums text-[#1A1D20] mt-1 block">
                   {formatCurrency(previewData.subtotalFreight)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-                <span className="text-[10px] font-bold text-red-500 uppercase block">Shortage Debit Note</span>
-                <span className="text-sm font-black font-mono text-red-600 dark:text-red-400">
+              <div className="p-3.5 rounded-xl bg-white border border-[#D8D5CE] shadow-xs">
+                <span className="text-[10px] font-bold text-[#D32F2F] uppercase block">Shortage Debit Note</span>
+                <span className="text-sm font-bold font-mono-nums text-[#D32F2F] mt-1 block">
                   - {formatCurrency(previewData.totalShortageDebit)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
-                <span className="text-[10px] font-bold text-purple-500 uppercase block">TDS ({previewData.tdsPercentage}%)</span>
-                <span className="text-sm font-black font-mono text-purple-600 dark:text-purple-400">
+              <div className="p-3.5 rounded-xl bg-white border border-[#D8D5CE] shadow-xs">
+                <span className="text-[10px] font-bold text-[#0288D1] uppercase block">TDS ({previewData.tdsPercentage}%)</span>
+                <span className="text-sm font-bold font-mono-nums text-[#0288D1] mt-1 block">
                   - {formatCurrency(previewData.tdsAmount)}
                 </span>
               </div>
 
-              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase block">NET BILL AMOUNT</span>
-                <span className="text-base font-black font-mono text-emerald-600 dark:text-emerald-400">
+              <div className="p-3.5 rounded-xl bg-[#E8F5E9] border border-[#A5D6A7] shadow-xs">
+                <span className="text-[10px] font-bold text-[#2E7D32] uppercase block">NET BILL AMOUNT</span>
+                <span className="text-base font-black font-mono-nums text-[#2E7D32] mt-1 block">
                   {formatCurrency(previewData.netBillAmount)}
                 </span>
               </div>
             </div>
 
             {/* Bill Header Info */}
-            <div className="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl text-xs flex justify-between items-center">
+            <div className="p-3.5 bg-[#FAF8F5] border border-[#D8D5CE] rounded-xl text-xs flex justify-between items-center">
               <div>
-                <span className="text-gray-400 block">Billing Customer</span>
-                <span className="font-bold text-sm text-primary-600 dark:text-primary-400">
+                <span className="text-[#7A7F85] block font-bold uppercase text-[10px]">Billing Customer</span>
+                <span className="font-bold text-sm text-[#E05638]">
                   {parties.find((p) => p.id === selectedPartyId)?.name || "Selected Party"}
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-gray-400 block">Bill Date & Sequential No</span>
-                <span className="font-mono font-semibold">{formatDate(billDate)} (Auto-assigned on save)</span>
+                <span className="text-[#7A7F85] block font-bold uppercase text-[10px]">Bill Date & Sequential No</span>
+                <span className="font-mono-nums font-semibold">{formatDate(billDate)} (Auto-assigned on save)</span>
               </div>
             </div>
 
             {/* Items Table */}
-            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto">
-              <table className="w-full text-left text-[11px]">
-                <thead className="bg-gray-100 dark:bg-gray-800 font-semibold uppercase text-gray-500 sticky top-0">
+            <div className="border border-[#D8D5CE] rounded-xl overflow-hidden max-h-[300px] overflow-y-auto bg-white shadow-xs">
+              <table className="w-full text-left text-[11.5px] border-collapse">
+                <thead className="bg-[#FAF8F5] border-b border-[#D8D5CE] font-semibold uppercase text-[#5F6368] sticky top-0">
                   <tr>
-                    <th className="p-2">#</th>
-                    <th className="p-2">Truck</th>
-                    <th className="p-2">Route</th>
-                    <th className="p-2 text-right">N-Wt</th>
-                    <th className="p-2 text-right">R-Wt</th>
-                    <th className="p-2 text-right">Rate</th>
-                    <th className="p-2 text-right">Freight</th>
-                    <th className="p-2 text-right">Shortage</th>
-                    <th className="p-2 text-right">Debit</th>
+                    <th className="p-2.5">#</th>
+                    <th className="p-2.5">Truck</th>
+                    <th className="p-2.5">Route</th>
+                    <th className="p-2.5 text-right">N-Wt</th>
+                    <th className="p-2.5 text-right">R-Wt</th>
+                    <th className="p-2.5 text-right">Rate</th>
+                    <th className="p-2.5 text-right">Freight</th>
+                    <th className="p-2.5 text-right">Shortage</th>
+                    <th className="p-2.5 text-right">Debit</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800 font-mono">
+                <tbody className="divide-y divide-[#EFECE6] font-mono-nums">
                   {previewData.items.map((item) => (
-                    <tr key={item.tripId}>
-                      <td className="p-2 font-semibold">#{item.srNo}</td>
-                      <td className="p-2">{item.truckNumberRaw || "—"}</td>
-                      <td className="p-2 font-sans">{item.fromLocationRaw} → {item.toLocationRaw}</td>
-                      <td className="p-2 text-right">{item.nWeight.toFixed(3)} T</td>
-                      <td className="p-2 text-right">{item.rWeight.toFixed(3)} T</td>
-                      <td className="p-2 text-right">₹{item.appliedRate}</td>
-                      <td className="p-2 text-right font-semibold text-gray-900 dark:text-gray-100">
+                    <tr key={item.tripId} className="hover:bg-[#FAF8F5] transition-colors">
+                      <td className="p-2.5 font-semibold">#{item.srNo}</td>
+                      <td className="p-2.5 font-bold">{item.truckNumberRaw || "—"}</td>
+                      <td className="p-2.5 font-sans">{item.fromLocationRaw} → {item.toLocationRaw}</td>
+                      <td className="p-2.5 text-right">{item.nWeight.toFixed(3)} T</td>
+                      <td className="p-2.5 text-right">{item.rWeight.toFixed(3)} T</td>
+                      <td className="p-2.5 text-right">₹{item.appliedRate}</td>
+                      <td className="p-2.5 text-right font-bold text-[#1A1D20]">
                         {formatCurrency(item.freight)}
                       </td>
-                      <td className="p-2 text-right text-amber-600">
+                      <td className="p-2.5 text-right text-[#ED6C02]">
                         {item.shortageQtyApplicable.toFixed(3)} T
                       </td>
-                      <td className="p-2 text-right font-semibold text-red-600">
+                      <td className="p-2.5 text-right font-bold text-[#D32F2F]">
                         {item.shortageDebitAmount > 0 ? formatCurrency(item.shortageDebitAmount) : "—"}
                       </td>
                     </tr>
@@ -785,13 +750,13 @@ export default function NewBillPage() {
             </div>
 
             {submitError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs">
+              <div className="p-3.5 bg-[#FDEDED] border border-[#D32F2F]/30 text-[#D32F2F] rounded-xl text-xs">
                 {submitError}
               </div>
             )}
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#D8D5CE]">
               <Button
                 variant="secondary"
                 size="sm"
@@ -801,9 +766,8 @@ export default function NewBillPage() {
                 Back to Selection
               </Button>
               <Button
-                variant="primary"
+                variant="coral"
                 size="sm"
-                icon={Check}
                 onClick={handleConfirmCreateBill}
                 disabled={submitting}
                 id="bill-confirm-create-btn"

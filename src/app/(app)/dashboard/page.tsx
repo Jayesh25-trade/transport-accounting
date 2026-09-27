@@ -120,25 +120,33 @@ function KpiCard({
   hint?: string;
   tone?: "ink" | "coral" | "sun" | "outline";
 }) {
-  const tones = {
-    ink: "bg-ink text-ink-foreground",
-    coral: "bg-coral text-coral-foreground",
-    sun: "bg-sun text-ink",
-    outline: "bg-card border-2 border-ink",
+  const badgeClasses = {
+    coral: "bg-red-50 text-red-700 border-red-200",
+    ink: "bg-slate-100 text-slate-800 border-slate-200",
+    sun: "bg-amber-50 text-amber-800 border-amber-200",
+    outline: "bg-emerald-50 text-emerald-800 border-emerald-200",
   } as const;
-  const hintTone = {
-    ink: "text-ink-foreground/65",
-    coral: "text-coral-foreground/80",
-    sun: "text-ink/70",
-    outline: "text-muted-foreground",
-  } as const;
+
   return (
-    <div className={cn("rounded-3xl p-5 md:p-6", tones[tone])}>
-      <div className={cn("text-[11px] font-semibold tracking-[0.18em] uppercase", hintTone[tone])}>
-        {label}
+    <div className="rounded-2xl border border-[#D8D5CE] bg-white p-5 md:p-6 shadow-xs flex flex-col justify-between transition-all hover:border-[#9E9A91]">
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-bold tracking-wider uppercase text-[#7A7F85]">
+            {label}
+          </span>
+          <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border", badgeClasses[tone])}>
+            {tone === "coral" ? "Outstanding" : tone === "ink" ? "Revenue" : tone === "sun" ? "Receipts" : "Operational"}
+          </span>
+        </div>
+        <div className="font-mono mt-2.5 text-2xl md:text-3xl font-bold text-[#1A1D20] tnum">
+          {value}
+        </div>
       </div>
-      <div className="font-display mt-2 text-3xl font-bold tnum">{value}</div>
-      {hint && <div className={cn("mt-1 text-sm font-medium", hintTone[tone])}>{hint}</div>}
+      {hint && (
+        <div className="mt-2 text-xs font-medium text-[#5F6368] border-t border-[#EFECE6] pt-2">
+          {hint}
+        </div>
+      )}
     </div>
   );
 }
@@ -157,12 +165,12 @@ function Panel({
   className?: string;
 }) {
   return (
-    <section className={cn("card-flat p-5 md:p-6", className)}>
+    <section className={cn("rounded-2xl border border-[#D8D5CE] bg-white p-5 md:p-6 shadow-xs", className)}>
       {(title || subtitle || action) && (
-        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b border-[#EFECE6] pb-3">
           <div>
-            {title && <h2 className="font-display text-xl font-bold md:text-2xl">{title}</h2>}
-            {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
+            {title && <h2 className="font-display text-lg font-bold text-[#1A1D20]">{title}</h2>}
+            {subtitle && <p className="mt-0.5 text-xs text-[#5F6368]">{subtitle}</p>}
           </div>
           {action}
         </div>
@@ -245,14 +253,17 @@ function MiniStat({
 }) {
   return (
     <div
-      className={
+      className={cn(
+        "rounded-2xl border p-4 shadow-xs flex flex-col justify-between transition-all",
         highlight
-          ? "rounded-2xl bg-ink px-4 py-3 text-ink-foreground"
-          : "rounded-2xl border-2 border-ink/12 bg-white dark:bg-gray-900 px-4 py-3"
-      }
+          ? "border-[#E05638] bg-[#FAF8F5] text-[#1A1D20]"
+          : "border-[#D8D5CE] bg-white text-[#1A1D20]"
+      )}
     >
-      <div className="text-[10px] font-semibold tracking-[0.18em] uppercase opacity-60">{label}</div>
-      <div className="font-display mt-1 text-xl font-bold tnum">{value}</div>
+      <div className={cn("text-[10px] font-bold tracking-wider uppercase", highlight ? "text-[#E05638]" : "text-[#7A7F85]")}>
+        {label}
+      </div>
+      <div className="font-mono mt-1.5 text-xl font-bold text-[#1A1D20] tnum">{value}</div>
     </div>
   );
 }
@@ -359,10 +370,10 @@ export default function DashboardPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/daily-book">
-              <Button variant="ink">📒 Add trip</Button>
+              <Button variant="ink">Add trip</Button>
             </Link>
             <Link href="/billing/new">
-              <Button variant="coral">🧾 Create bill</Button>
+              <Button variant="coral">Create bill</Button>
             </Link>
             <button
               type="button"

@@ -46,60 +46,60 @@ export function BillDetailModal({ billId, onClose }: BillDetailModalProps) {
   return (
     <Modal open={Boolean(billId)} onClose={onClose} title={detail ? `Bill Invoice #${detail.billNumber}` : "Bill Details"} size="lg">
       {loading ? (
-        <div className="p-8 text-center text-gray-400 text-sm">Loading bill details…</div>
+        <div className="p-8 text-center text-[#7A7F85] text-sm">Loading bill details…</div>
       ) : error || !detail ? (
-        <div className="p-4 bg-red-50 text-red-600 rounded-lg text-xs">{error || "Bill details not found"}</div>
+        <div className="p-4 bg-[#FDEDED] text-[#D32F2F] rounded-lg text-xs">{error || "Bill details not found"}</div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 text-[#1A1D20]">
           {/* Top Banner */}
-          <div className="flex flex-wrap items-center justify-between p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-wrap items-center justify-between p-4 rounded-xl bg-[#FAF8F5] border border-[#D8D5CE] shadow-xs">
             <div>
-              <span className="text-xs text-gray-400 font-medium block">
+              <span className="text-xs text-[#7A7F85] font-bold uppercase tracking-wider block">
                 Bill Invoice #{detail.billNumber}
               </span>
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+              <h3 className="text-lg font-bold text-[#1A1D20] mt-0.5">
                 {detail.partyName || "Customer Invoice"}
               </h3>
-              <span className="text-xs text-gray-500">Date: {formatDate(detail.billDate)}</span>
+              <span className="text-xs text-[#5F6368]">Date: {formatDate(detail.billDate)}</span>
             </div>
             <div className="text-right">
               <Badge variant={Number(detail.pendingAmount) === 0 ? "success" : Number(detail.receivedAmount) > 0 ? "warning" : "neutral"}>
                 {Number(detail.pendingAmount) === 0 ? "PAID" : Number(detail.receivedAmount) > 0 ? "PARTIALLY_PAID" : "PENDING"}
               </Badge>
-              <div className="text-xs font-mono text-gray-500 mt-1">
+              <div className="text-xs font-mono-nums text-[#5F6368] mt-1.5 font-semibold">
                 Pending: {formatCurrency(detail.pendingAmount)}
               </div>
             </div>
           </div>
 
           {/* Totals Breakdown Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div className="card p-3">
-              <span className="text-gray-400 font-bold block uppercase text-[10px]">Subtotal Freight</span>
-              <span className="font-mono font-bold text-sm text-gray-900 dark:text-gray-100">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+            <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 shadow-xs">
+              <span className="text-[#7A7F85] font-bold block uppercase text-[10px] tracking-wider">Subtotal Freight</span>
+              <span className="font-mono-nums font-bold text-sm text-[#1A1D20] mt-1 block">
                 {formatCurrency(detail.subtotalFreight)}
               </span>
             </div>
 
-            <div className="card p-3">
-              <span className="text-red-500 font-bold block uppercase text-[10px]">Shortage Debit Note</span>
-              <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400">
+            <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 shadow-xs">
+              <span className="text-[#D32F2F] font-bold block uppercase text-[10px] tracking-wider">Shortage Debit Note</span>
+              <span className="font-mono-nums font-bold text-sm text-[#D32F2F] mt-1 block">
                 - {formatCurrency(detail.debitNoteAmount)}
               </span>
             </div>
 
-            <div className="card p-3">
-              <span className="text-purple-500 font-bold block uppercase text-[10px]">
+            <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 shadow-xs">
+              <span className="text-[#0288D1] font-bold block uppercase text-[10px] tracking-wider">
                 TDS ({detail.appliedTdsPercentage ?? 0}%)
               </span>
-              <span className="font-mono font-bold text-sm text-purple-600 dark:text-purple-400">
+              <span className="font-mono-nums font-bold text-sm text-[#0288D1] mt-1 block">
                 - {formatCurrency(detail.tdsAmount)}
               </span>
             </div>
 
-            <div className="card p-3 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-              <span className="text-emerald-600 font-bold block uppercase text-[10px]">Net Bill Amount</span>
-              <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
+            <div className="rounded-xl border border-[#A5D6A7] bg-[#E8F5E9] p-3.5 shadow-xs">
+              <span className="text-[#2E7D32] font-bold block uppercase text-[10px] tracking-wider">Net Bill Amount</span>
+              <span className="font-mono-nums font-black text-sm text-[#2E7D32] mt-1 block">
                 {formatCurrency(detail.netBillAmount)}
               </span>
             </div>
@@ -107,32 +107,32 @@ export function BillDetailModal({ billId, onClose }: BillDetailModalProps) {
 
           {/* Bill Items Table */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-2">
               Billed Trips ({detail.items?.length || 0})
             </h4>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden max-h-[260px] overflow-y-auto">
-              <table className="w-full text-left text-[11px]">
-                <thead className="bg-gray-50 dark:bg-gray-800/80 font-semibold uppercase text-gray-500 sticky top-0">
+            <div className="border border-[#D8D5CE] rounded-xl overflow-hidden max-h-[260px] overflow-y-auto bg-white shadow-xs">
+              <table className="w-full text-left text-[11.5px] border-collapse">
+                <thead className="bg-[#FAF8F5] border-b border-[#D8D5CE] font-semibold uppercase text-[#5F6368] sticky top-0">
                   <tr>
-                    <th className="p-2">Date</th>
-                    <th className="p-2">Truck</th>
-                    <th className="p-2">Route</th>
-                    <th className="p-2 text-right">R-Wt</th>
-                    <th className="p-2 text-right">Freight</th>
-                    <th className="p-2 text-right">Shortage</th>
+                    <th className="p-2.5">Date</th>
+                    <th className="p-2.5">Truck</th>
+                    <th className="p-2.5">Route</th>
+                    <th className="p-2.5 text-right">R-Wt</th>
+                    <th className="p-2.5 text-right">Freight</th>
+                    <th className="p-2.5 text-right">Shortage</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                <tbody className="divide-y divide-[#EFECE6]">
                   {detail.items?.map((item: any) => (
-                    <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
-                      <td className="p-2 whitespace-nowrap">{formatDate(item.entryDate)}</td>
-                      <td className="p-2 font-medium">{item.truckNumber}</td>
-                      <td className="p-2 text-gray-500">
+                    <tr key={item.id} className="hover:bg-[#FAF8F5] transition-colors">
+                      <td className="p-2.5 whitespace-nowrap">{formatDate(item.entryDate)}</td>
+                      <td className="p-2.5 font-bold font-mono-nums">{item.truckNumber}</td>
+                      <td className="p-2.5 text-[#5F6368]">
                         {item.fromLocation || "-"} → {item.toLocation || "-"}
                       </td>
-                      <td className="p-2 text-right font-mono">{Number(item.rWeight || 0).toFixed(3)}</td>
-                      <td className="p-2 text-right font-mono font-medium">{formatCurrency(item.freight)}</td>
-                      <td className="p-2 text-right font-mono text-red-500">
+                      <td className="p-2.5 text-right font-mono-nums">{Number(item.rWeight || 0).toFixed(3)}</td>
+                      <td className="p-2.5 text-right font-mono-nums font-bold">{formatCurrency(item.freight)}</td>
+                      <td className="p-2.5 text-right font-mono-nums text-[#D32F2F]">
                         {Number(item.shortageDebitAmount) > 0 ? `- ${formatCurrency(item.shortageDebitAmount)}` : "-"}
                       </td>
                     </tr>
@@ -142,28 +142,22 @@ export function BillDetailModal({ billId, onClose }: BillDetailModalProps) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between pt-3 border-t border-[#D8D5CE]">
             <div className="flex items-center gap-2">
               <a
                 href={`/api/bills/${detail.id}/pdf${firmIdParam}${firmIdParam ? "&" : "?"}download=true`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-secondary btn-sm inline-flex items-center gap-1.5"
+                className="btn btn-secondary btn-sm"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
                 Download PDF
               </a>
               <a
                 href={`/api/bills/${detail.id}/pdf${firmIdParam}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-primary btn-sm inline-flex items-center gap-1.5"
+                className="btn btn-coral btn-sm"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
                 Print Bill
               </a>
             </div>

@@ -2,78 +2,75 @@
 
 /* ─── Design Tokens ────────────────────────────────────────── */
 :root {
-  /* Brand */
-  --brand-50:  #eef2ff;
-  --brand-100: #e0e7ff;
-  --brand-200: #c7d2fe;
-  --brand-400: #818cf8;
-  --brand-500: #6366f1;
-  --brand-600: #4f46e5;
-  --brand-700: #4338ca;
-  --brand-900: #312e81;
+  /* Brand / Primary Accent */
+  --brand-50:  #fdf2f0;
+  --brand-100: #fce4e0;
+  --brand-200: #f7c9c0;
+  --brand-400: #f08873;
+  --brand-500: #e05638;
+  --brand-600: #d04223;
+  --brand-700: #b53317;
+  --brand-900: #7a1d0a;
 
-  /* Neutrals */
-  --gray-50:  #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
-  --gray-700: #374151;
-  --gray-800: #1f2937;
-  --gray-900: #111827;
-  --gray-950: #030712;
+  /* Warm Neutral Palette */
+  --gray-50:  #fbf9f5;
+  --gray-100: #f4f1ea;
+  --gray-200: #d8d5ce;
+  --gray-300: #c4c0b7;
+  --gray-400: #9e9a91;
+  --gray-500: #7a7f85;
+  --gray-600: #5f6368;
+  --gray-700: #3c4043;
+  --gray-800: #202124;
+  --gray-900: #1a1d20;
 
-  /* Semantic */
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger:  #ef4444;
-  --info:    #3b82f6;
+  /* Semantic Colors */
+  --success: #2e7d32;
+  --success-bg: #e8f5e9;
+  --warning: #ed6c02;
+  --warning-bg: #fff4e5;
+  --danger:  #d32f2f;
+  --danger-bg: #fdeded;
+  --info:    #0288d1;
+  --info-bg: #e1f5fe;
 
-  /* Lovable Palette Tokens */
+  /* Theme Tokens */
   --ink: #1a1d20;
   --ink-foreground: #ffffff;
-  --coral: #ff5e3a;
+  --coral: #e05638;
   --coral-foreground: #ffffff;
-  --sun: #ffe800;
-  --sun-light: #fff8d6;
-  --turq: #45d4b2;
-  --turq-foreground: #1a1d20;
-  --shadow-flat: 4px 4px 0px #1a1d20;
+  --sun: #d97706;
+  --sun-light: #fef3c7;
+  --turq: #0d9488;
+  --turq-foreground: #ffffff;
+  --shadow-flat: 2px 2px 0px #d8d5ce;
 
   /* Layout */
-  --sidebar-width: 240px;
+  --sidebar-width: 248px;
   --sidebar-collapsed-width: 64px;
   --topbar-height: 56px;
 
-  /* Light Theme */
-  --bg-base:        var(--gray-50);
+  /* Warm White / Cream Theme */
+  --bg-base:        #f4f1ea;
   --bg-surface:     #ffffff;
-  --bg-sidebar:     var(--gray-900);
-  --bg-sidebar-hover: var(--gray-800);
-  --bg-sidebar-active: var(--brand-600);
-  --text-primary:   var(--gray-900);
-  --text-secondary: var(--gray-600);
-  --text-muted:     var(--gray-400);
-  --text-sidebar:   var(--gray-300);
+  --bg-sidebar:     #faf8f5;
+  --bg-sidebar-hover: #efece6;
+  --bg-sidebar-active: #e05638;
+  --text-primary:   #1a1d20;
+  --text-secondary: #5f6368;
+  --text-muted:     #7a7f85;
+  --text-sidebar:   #1a1d20;
   --text-sidebar-active: #ffffff;
-  --border-color:   var(--gray-200);
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --border-color:   #d8d5ce;
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-base:        var(--gray-950);
-    --bg-surface:     var(--gray-900);
-    --bg-sidebar:     #0d0f14;
-    --bg-sidebar-hover: var(--gray-800);
-    --text-primary:   var(--gray-50);
-    --text-secondary: var(--gray-400);
-    --text-muted:     var(--gray-600);
-    --border-color:   var(--gray-800);
-  }
+/* Suppress Next.js dev overlay toast during visual verification */
+nextjs-portal,
+[data-nextjs-toast],
+[data-nextjs-dialog-overlay] {
+  display: none !important;
 }
 
 /* ─── Base Reset ────────────────────────────────────────────── */
@@ -106,7 +103,7 @@ body {
   --color-foreground: var(--text-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --color-brand: var(--brand-600);
+  --color-brand: var(--brand-500);
   --color-border: var(--border-color);
   --color-surface: var(--bg-surface);
   --color-muted: var(--text-muted);
@@ -342,31 +339,27 @@ body {
   gap: 4px;
 }
 
-.badge-success { background: #d1fae5; color: #065f46; }
-.badge-warning { background: #fef3c7; color: #92400e; }
-.badge-danger  { background: #fee2e2; color: #991b1b; }
-.badge-info    { background: #dbeafe; color: #1e40af; }
-.badge-neutral { background: var(--gray-100); color: var(--gray-700); }
-.badge-posted  { background: var(--turq); color: var(--turq-foreground); }
-.badge-pending { background: var(--sun); color: #1a1d20; }
-.badge-received{ background: #d1fae5; color: #065f46; }
-.badge-coral   { background: var(--coral); color: var(--coral-foreground); }
-.badge-turq    { background: var(--turq); color: var(--turq-foreground); }
-.badge-sun     { background: var(--sun); color: #1a1d20; }
-
-@media (prefers-color-scheme: dark) {
-  .badge-success { background: #064e3b; color: #6ee7b7; }
-  .badge-warning { background: #78350f; color: #fde68a; }
-  .badge-danger  { background: #7f1d1d; color: #fca5a5; }
-  .badge-info    { background: #1e3a5f; color: #93c5fd; }
-  .badge-neutral { background: var(--gray-800); color: var(--gray-300); }
-  .badge-posted  { background: #164e43; color: #6ee7b7; }
-  .badge-pending { background: #78350f; color: #fde68a; }
-  .badge-received{ background: #064e3b; color: #6ee7b7; }
-  .badge-coral   { background: #992911; color: #fca5a5; }
-  .badge-turq    { background: #164e43; color: #6ee7b7; }
-  .badge-sun     { background: #78350f; color: #fde68a; }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  gap: 4px;
 }
+
+.badge-success { background: #e8f5e9; color: #2e7d32; }
+.badge-warning { background: #fff4e5; color: #ed6c02; }
+.badge-danger  { background: #fdeded; color: #d32f2f; }
+.badge-info    { background: #e1f5fe; color: #0288d1; }
+.badge-neutral { background: #f4f1ea; color: #3c4043; border: 1px solid #d8d5ce; }
+.badge-posted  { background: #e6f4f1; color: #0d9488; }
+.badge-pending { background: #fff4e5; color: #d97706; }
+.badge-received{ background: #e8f5e9; color: #2e7d32; }
+.badge-coral   { background: #fdf2f0; color: #e05638; }
+.badge-turq    { background: #e6f4f1; color: #0d9488; }
+.badge-sun     { background: #fff4e5; color: #d97706; }
 
 /* ─── Panels / Cards ────────────────────────────────────────── */
 .panel {

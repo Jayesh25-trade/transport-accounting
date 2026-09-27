@@ -40,12 +40,12 @@ export function Topbar() {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 bg-ink px-4 py-3 text-ink-foreground lg:hidden">
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 bg-[#FAF8F5] border-b border-[#D8D5CE] px-4 py-3 text-[#1A1D20] lg:hidden">
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="font-display grid size-8 shrink-0 place-items-center rounded-xl bg-coral text-sm font-bold text-coral-foreground">
+          <div className="font-display grid size-8 shrink-0 place-items-center rounded-lg bg-[#E05638] text-xs font-bold text-white shadow-xs">
             {shortName}
           </div>
-          <div className="text-sm font-semibold truncate">
+          <div className="text-sm font-bold text-[#1A1D20] truncate">
             {currentFirm?.name || "Transport App"}
           </div>
         </div>
@@ -54,7 +54,7 @@ export function Topbar() {
           id="mobile-menu-toggle"
           onClick={toggleMobileSidebar}
           aria-expanded={open}
-          className="rounded-full border-2 border-white/20 px-3 py-1.5 text-xs font-semibold shrink-0"
+          className="rounded-lg border border-[#D8D5CE] bg-white px-3 py-1.5 text-xs font-semibold text-[#1A1D20] shadow-xs hover:bg-[#F4F1EA] shrink-0"
         >
           {open ? "Close" : "Menu"}
         </button>
@@ -62,7 +62,7 @@ export function Topbar() {
 
       {/* Mobile Drawer */}
       {open && (
-        <div className="sticky top-[56px] z-30 max-h-[70vh] overflow-y-auto bg-ink px-4 pb-5 text-ink-foreground lg:hidden border-t border-white/10">
+        <div className="sticky top-[56px] z-30 max-h-[70vh] overflow-y-auto bg-[#FAF8F5] px-4 pb-5 text-[#1A1D20] lg:hidden border-b border-[#D8D5CE]">
           <FirmSwitcher compact />
           <div className="mt-3">
             <NavList onNavigate={() => setOpen(false)} />

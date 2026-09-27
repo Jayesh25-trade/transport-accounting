@@ -28,8 +28,8 @@ export function TableShell({
   className?: string;
 }) {
   return (
-    <div className={cn("data-table-wrapper", className)}>
-      <table className="data-table">{children}</table>
+    <div className={cn("overflow-x-auto rounded-xl border border-[#D8D5CE] bg-white shadow-xs", className)}>
+      <table className="w-full border-collapse text-[13.5px] text-[#1A1D20]">{children}</table>
     </div>
   );
 }
@@ -49,6 +49,7 @@ export function Th({
     <th
       colSpan={colSpan}
       className={cn(
+        "bg-[#FAF8F5] border-b border-[#D8D5CE] px-3.5 py-3 text-left text-[11px] font-semibold tracking-wider text-[#5F6368] uppercase whitespace-nowrap",
         align === "right" && "text-right",
         align === "center" && "text-center",
         className
@@ -74,6 +75,7 @@ export function Td({
     <td
       colSpan={colSpan}
       className={cn(
+        "border-b border-[#EFECE6] px-3.5 py-3 text-[#1A1D20] align-middle",
         align === "right" && "text-right",
         align === "center" && "text-center",
         className
@@ -115,7 +117,7 @@ export function DataTable<T extends object>({
               <tr key={i}>
                 {columns.map((col) => (
                   <Td key={col.key}>
-                    <div className="skeleton h-4 rounded" style={{ width: `${60 + Math.random() * 30}%` }} />
+                    <div className="skeleton h-4 rounded bg-[#EFECE6]" style={{ width: `${60 + Math.random() * 30}%` }} />
                   </Td>
                 ))}
               </tr>
@@ -125,7 +127,7 @@ export function DataTable<T extends object>({
             <tr>
               <Td colSpan={columns.length} className="py-0 px-0">
                 {emptyState ?? (
-                  <div className="flex flex-col items-center py-10 text-gray-400 text-sm">
+                  <div className="flex flex-col items-center py-10 text-[#7A7F85] text-sm">
                     No records found
                   </div>
                 )}
@@ -136,7 +138,10 @@ export function DataTable<T extends object>({
               <tr
                 key={String((row as Record<string, unknown>)[keyField] ?? i)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={cn(onRowClick && "cursor-pointer")}
+                className={cn(
+                  "hover:bg-[#FAF8F5] transition-colors",
+                  onRowClick && "cursor-pointer"
+                )}
               >
                 {columns.map((col) => (
                   <Td
@@ -147,7 +152,7 @@ export function DataTable<T extends object>({
                         col.key.includes("balance") ||
                         col.key.includes("total") ||
                         col.key.includes("weight")) &&
-                        "numeric",
+                        "font-mono-nums",
                       col.className
                     )}
                   >
@@ -162,7 +167,7 @@ export function DataTable<T extends object>({
       {footer && (
         <tfoot>
           <tr>
-            <Td colSpan={columns.length} className="border-t border-gray-200 dark:border-gray-700">
+            <Td colSpan={columns.length} className="border-t border-[#D8D5CE] bg-[#FAF8F5]">
               {footer}
             </Td>
           </tr>

@@ -2,15 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
-  BookOpen,
   Search,
-  Eye,
-  Users,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Filter,
-  AlertCircle,
-  Scale,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, Badge } from "@/components/ui/primitives";
@@ -208,7 +200,7 @@ export default function LedgerPage() {
     {
       key: "transactionDate",
       label: "Date",
-      render: (tx) => <span className="font-mono text-xs font-semibold">{formatDate(tx.transactionDate)}</span>,
+      render: (tx) => <span className="font-mono-nums text-xs font-semibold">{formatDate(tx.transactionDate)}</span>,
     },
     {
       key: "voucherType",
@@ -219,7 +211,7 @@ export default function LedgerPage() {
       key: "voucherNumber",
       label: "Voucher / Ref No",
       render: (tx) => (
-        <span className="font-mono text-xs font-medium text-gray-700 dark:text-gray-300">
+        <span className="font-mono-nums text-xs font-semibold text-[#1A1D20]">
           {tx.voucherNumber || "—"}
         </span>
       ),
@@ -229,8 +221,8 @@ export default function LedgerPage() {
       label: "Particulars",
       render: (tx) => (
         <div className="max-w-md">
-          <p className="text-xs font-medium text-gray-900 dark:text-gray-100">{tx.particulars}</p>
-          {tx.notes && <p className="text-[11px] text-gray-500 italic mt-0.5">{tx.notes}</p>}
+          <p className="text-xs font-medium text-[#1A1D20]">{tx.particulars}</p>
+          {tx.notes && <p className="text-[11px] text-[#7A7F85] italic mt-0.5">{tx.notes}</p>}
         </div>
       ),
     },
@@ -241,11 +233,11 @@ export default function LedgerPage() {
       render: (tx) => {
         const dr = Number(tx.debitAmount || 0);
         return dr > 0 ? (
-          <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+          <span className="font-mono-nums text-xs font-bold text-[#2E7D32]">
             {formatCurrency(dr)}
           </span>
         ) : (
-          <span className="text-gray-400 text-xs">—</span>
+          <span className="text-[#7A7F85] text-xs">—</span>
         );
       },
     },
@@ -256,11 +248,11 @@ export default function LedgerPage() {
       render: (tx) => {
         const cr = Number(tx.creditAmount || 0);
         return cr > 0 ? (
-          <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
+          <span className="font-mono-nums text-xs font-bold text-[#0288D1]">
             {formatCurrency(cr)}
           </span>
         ) : (
-          <span className="text-gray-400 text-xs">—</span>
+          <span className="text-[#7A7F85] text-xs">—</span>
         );
       },
     },
@@ -274,13 +266,13 @@ export default function LedgerPage() {
         return (
           <div className="text-right">
             <span
-              className={`font-mono text-xs font-extrabold ${
-                isCr ? "text-blue-700 dark:text-blue-300" : "text-emerald-700 dark:text-emerald-300"
+              className={`font-mono-nums text-xs font-bold ${
+                isCr ? "text-[#0288D1]" : "text-[#2E7D32]"
               }`}
             >
               {formatCurrency(Math.abs(bal))}
             </span>
-            <span className="text-[10px] ml-1 font-bold text-gray-500">{isCr ? "Cr" : "Dr"}</span>
+            <span className="text-[10px] ml-1 font-bold text-[#7A7F85]">{isCr ? "Cr" : "Dr"}</span>
           </div>
         );
       },
@@ -290,21 +282,20 @@ export default function LedgerPage() {
       label: "Action",
       align: "right",
       render: (tx) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={Eye}
+        <button
+          type="button"
+          className="rounded-lg border border-[#D8D5CE] bg-white px-2.5 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#FAF8F5] transition-colors"
           onClick={() => setViewTx(tx)}
           title="View Transaction Details"
         >
           Details
-        </Button>
+        </button>
       ),
     },
   ];
 
   return (
-    <div className="animate-fade-in space-y-6">
+    <div className="animate-fade-in space-y-6 text-[#1A1D20]">
       {/* Page Header */}
       <PageHeader
         title="Customer Ledger Statement"
@@ -314,23 +305,22 @@ export default function LedgerPage() {
 
       {/* Error Alert */}
       {fetchError && (
-        <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 flex items-center gap-3 text-red-700 dark:text-red-300">
-          <AlertCircle size={20} className="flex-shrink-0 text-red-500" />
-          <p className="text-sm font-medium">{fetchError}</p>
+        <div className="p-4 rounded-xl bg-[#FDEDED] border border-[#D32F2F]/30 text-[#D32F2F] text-xs">
+          <p className="font-semibold">{fetchError}</p>
         </div>
       )}
 
       {/* Customer / Party Selection Card */}
-      <div className="card p-5 bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800">
+      <div className="rounded-2xl border border-[#D8D5CE] bg-white p-5 shadow-xs">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div className="md:col-span-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1.5">
-              <Users size={14} className="text-primary-500" /> Select Customer / Party <span className="text-red-500">*</span>
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-2">
+              Select Customer / Party <span className="text-[#D32F2F]">*</span>
             </label>
             <select
               value={selectedPartyId}
               onChange={(e) => setSelectedPartyId(e.target.value)}
-              className="w-full h-11 px-3 py-2 rounded-xl bg-gray-50 dark:bg-gray-800/80 border border-gray-300 dark:border-gray-700 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              className="form-input font-semibold text-sm h-11"
             >
               <option value="">-- Choose Party to View Ledger Statement --</option>
               {parties.map((p) => (
@@ -341,13 +331,12 @@ export default function LedgerPage() {
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div>
             <Button
-              variant="secondary"
-              className="w-full h-11 justify-center font-semibold"
+              variant="coral"
+              className="w-full h-11 justify-center font-semibold text-xs"
               onClick={fetchLedger}
               disabled={!selectedPartyId || loadingLedger}
-              icon={BookOpen}
             >
               {loadingLedger ? "Refreshing..." : "Refresh Statement"}
             </Button>
@@ -357,14 +346,11 @@ export default function LedgerPage() {
 
       {/* When NO Party Selected: Clear Empty State */}
       {!selectedPartyId && (
-        <div className="card py-16 px-6 text-center bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-800">
-          <div className="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-950/40 flex items-center justify-center mx-auto mb-4 text-primary-600">
-            <Users size={32} />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">
+        <div className="rounded-2xl border border-dashed border-[#D8D5CE] bg-[#FAF8F5] py-16 px-6 text-center">
+          <h3 className="text-base font-bold text-[#1A1D20] mb-1">
             No Customer Selected
           </h3>
-          <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+          <p className="text-xs text-[#5F6368] max-w-md mx-auto">
             Please select a customer from the dropdown above to load their official party ledger statement, opening balance, and running balance history.
           </p>
         </div>
@@ -374,94 +360,91 @@ export default function LedgerPage() {
       {selectedPartyId && selectedParty && (
         <>
           {/* Party Header Banner & Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {/* Opening Balance Card */}
-            <div className="card p-4 bg-gradient-to-br from-gray-50 to-gray-100/50 dark:from-gray-900 dark:to-gray-800/50 border border-gray-200 dark:border-gray-800">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">
+            <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#7A7F85] block mb-1">
                 Opening Balance
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="text-xl font-black font-mono text-gray-900 dark:text-gray-100">
+                <span className="text-xl font-bold font-mono-nums text-[#1A1D20]">
                   {formatCurrency(summaryMetrics.obAmount)}
                 </span>
-                <span className="text-xs font-bold px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                <span className="text-xs font-bold px-2 py-0.5 rounded bg-[#FAF8F5] border border-[#D8D5CE] text-[#5F6368]">
                   {summaryMetrics.obType}
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500 mt-1">
+              <p className="text-[11px] text-[#7A7F85] mt-1">
                 Effective: {openingBalance ? formatDate(openingBalance.effectiveDate) : "Period Start"}
               </p>
             </div>
 
             {/* Total Credits (Bills) */}
-            <div className="card p-4 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 dark:from-blue-950/20 dark:to-indigo-950/10 border border-blue-100 dark:border-blue-900/30">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 block mb-1 flex items-center justify-between">
-                Total Billed (Credits) <ArrowUpRight size={14} className="text-blue-500" />
+            <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#0288D1] block mb-1">
+                Total Billed (Credits)
               </span>
-              <span className="text-xl font-black font-mono text-blue-700 dark:text-blue-300 block">
+              <span className="text-xl font-bold font-mono-nums text-[#0288D1] block">
                 {formatCurrency(summaryMetrics.totalCredits)}
               </span>
-              <p className="text-[11px] text-blue-600/80 dark:text-blue-400/80 mt-1">
+              <p className="text-[11px] text-[#7A7F85] mt-1">
                 Freight & Debit Notes (Cr)
               </p>
             </div>
 
             {/* Total Debits (Payments & TDS) */}
-            <div className="card p-4 bg-gradient-to-br from-emerald-50/50 to-teal-50/30 dark:from-emerald-950/20 dark:to-teal-950/10 border border-emerald-100 dark:border-emerald-900/30">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 block mb-1 flex items-center justify-between">
-                Total Paid / Received (Debits) <ArrowDownLeft size={14} className="text-emerald-500" />
+            <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#2E7D32] block mb-1">
+                Total Paid / Received (Debits)
               </span>
-              <span className="text-xl font-black font-mono text-emerald-700 dark:text-emerald-300 block">
+              <span className="text-xl font-bold font-mono-nums text-[#2E7D32] block">
                 {formatCurrency(summaryMetrics.totalDebits)}
               </span>
-              <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 mt-1">
+              <p className="text-[11px] text-[#7A7F85] mt-1">
                 Receipts, Cash & TDS (Dr)
               </p>
             </div>
 
             {/* Current Running Balance */}
-            <div className="card p-4 bg-gradient-to-br from-purple-50/50 to-pink-50/30 dark:from-purple-950/20 dark:to-pink-950/10 border border-purple-200 dark:border-purple-900/40">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300 block mb-1 flex items-center justify-between">
-                Net Outstanding Balance <Scale size={14} className="text-purple-600" />
+            <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#E05638] block mb-1">
+                Net Outstanding Balance
               </span>
               <div className="flex items-baseline gap-2">
-                <span className="text-xl font-black font-mono text-purple-900 dark:text-purple-100">
+                <span className="text-xl font-bold font-mono-nums text-[#1A1D20]">
                   {formatCurrency(Math.abs(summaryMetrics.currentBalance))}
                 </span>
                 <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded ${
+                  className={`text-xs font-bold px-2 py-0.5 rounded border ${
                     summaryMetrics.currentBalance >= 0
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
-                      : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
+                      ? "bg-[#E1F5FE] text-[#0288D1] border-[#81D4FA]"
+                      : "bg-[#E8F5E9] text-[#2E7D32] border-[#A5D6A7]"
                   }`}
                 >
                   {summaryMetrics.currentBalance >= 0 ? "Cr (Receivable)" : "Dr (Surplus)"}
                 </span>
               </div>
-              <p className="text-[11px] text-purple-600/80 dark:text-purple-400/80 mt-1">
+              <p className="text-[11px] text-[#7A7F85] mt-1">
                 OB + Credits - Debits
               </p>
             </div>
           </div>
 
           {/* Filter Toolbar */}
-          <div className="card p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Filter size={16} className="text-gray-400" />
-                <span className="text-xs font-bold uppercase text-gray-700 dark:text-gray-300">
-                  Statement Filters
-                </span>
-              </div>
+          <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 space-y-3 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EFECE6] pb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#5F6368]">
+                Statement Filters
+              </span>
 
               {/* Date Presets */}
-              <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg text-xs font-semibold">
+              <div className="flex items-center gap-1.5 bg-[#FAF8F5] p-1 rounded-lg text-xs font-semibold border border-[#D8D5CE]">
                 <button
                   onClick={() => handlePresetChange("ALL_TIME")}
                   className={`px-3 py-1 rounded-md transition-colors ${
                     activePreset === "ALL_TIME"
-                      ? "bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-xs"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                      ? "bg-[#E05638] text-white shadow-xs"
+                      : "text-[#5F6368] hover:text-[#1A1D20]"
                   }`}
                 >
                   All Time
@@ -470,8 +453,8 @@ export default function LedgerPage() {
                   onClick={() => handlePresetChange("THIS_MONTH")}
                   className={`px-3 py-1 rounded-md transition-colors ${
                     activePreset === "THIS_MONTH"
-                      ? "bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-xs"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                      ? "bg-[#E05638] text-white shadow-xs"
+                      : "text-[#5F6368] hover:text-[#1A1D20]"
                   }`}
                 >
                   This Month
@@ -480,8 +463,8 @@ export default function LedgerPage() {
                   onClick={() => handlePresetChange("THIS_FY")}
                   className={`px-3 py-1 rounded-md transition-colors ${
                     activePreset === "THIS_FY"
-                      ? "bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-xs"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                      ? "bg-[#E05638] text-white shadow-xs"
+                      : "text-[#5F6368] hover:text-[#1A1D20]"
                   }`}
                 >
                   This FY
@@ -492,7 +475,7 @@ export default function LedgerPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
               {/* Date From */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-500 mb-1">Date From</label>
+                <label className="block text-[11px] font-bold text-[#5F6368] mb-1 uppercase tracking-wider">Date From</label>
                 <input
                   type="date"
                   value={dateFrom}
@@ -500,13 +483,13 @@ export default function LedgerPage() {
                     setDateFrom(e.target.value);
                     setActivePreset("CUSTOM");
                   }}
-                  className="w-full h-9 px-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-xs font-semibold"
+                  className="form-input text-xs"
                 />
               </div>
 
               {/* Date To */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-500 mb-1">Date To</label>
+                <label className="block text-[11px] font-bold text-[#5F6368] mb-1 uppercase tracking-wider">Date To</label>
                 <input
                   type="date"
                   value={dateTo}
@@ -514,17 +497,17 @@ export default function LedgerPage() {
                     setDateTo(e.target.value);
                     setActivePreset("CUSTOM");
                   }}
-                  className="w-full h-9 px-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-xs font-semibold"
+                  className="form-input text-xs"
                 />
               </div>
 
               {/* Voucher Type */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-500 mb-1">Voucher Type</label>
+                <label className="block text-[11px] font-bold text-[#5F6368] mb-1 uppercase tracking-wider">Voucher Type</label>
                 <select
                   value={voucherTypeFilter}
                   onChange={(e) => setVoucherTypeFilter(e.target.value)}
-                  className="w-full h-9 px-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-xs font-semibold"
+                  className="form-input text-xs"
                 >
                   <option value="ALL">All Voucher Types</option>
                   <option value="TRANSPORTATION_CHARGES_RCM">Freight Bills (Cr)</option>
@@ -538,11 +521,11 @@ export default function LedgerPage() {
 
               {/* Entry Type */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-500 mb-1">Entry Side</label>
+                <label className="block text-[11px] font-bold text-[#5F6368] mb-1 uppercase tracking-wider">Entry Side</label>
                 <select
                   value={entryTypeFilter}
                   onChange={(e) => setEntryTypeFilter(e.target.value)}
-                  className="w-full h-9 px-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-xs font-semibold"
+                  className="form-input text-xs"
                 >
                   <option value="ALL">All Entries (Cr & Dr)</option>
                   <option value="CREDIT">Credits Only (Bills)</option>
@@ -552,15 +535,15 @@ export default function LedgerPage() {
 
               {/* Search Particulars / Ref */}
               <div>
-                <label className="block text-[11px] font-bold text-gray-500 mb-1">Search Ref / Text</label>
+                <label className="block text-[11px] font-bold text-[#5F6368] mb-1 uppercase tracking-wider">Search Ref / Text</label>
                 <div className="relative">
-                  <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
+                  <Search size={14} className="absolute left-2.5 top-2.5 text-[#7A7F85]" />
                   <input
                     type="text"
                     placeholder="Search particulars..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-9 pl-8 pr-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-xs font-medium"
+                    className="form-input pl-8 text-xs"
                   />
                 </div>
               </div>
@@ -573,7 +556,7 @@ export default function LedgerPage() {
             data={ledgerEntries}
             loading={loadingLedger}
             emptyState={
-              <div className="flex flex-col items-center py-10 text-gray-400 text-sm">
+              <div className="flex flex-col items-center py-10 text-[#7A7F85] text-sm">
                 No ledger transactions match the selected party and date range.
               </div>
             }
@@ -589,52 +572,52 @@ export default function LedgerPage() {
           title="Ledger Transaction Voucher Details"
           size="lg"
         >
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="space-y-4 text-[#1A1D20]">
+            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#D8D5CE] flex items-center justify-between shadow-xs">
               <div>
-                <span className="text-[10px] font-bold uppercase text-gray-400 block">Party / Customer</span>
-                <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                <span className="text-[10px] font-bold uppercase text-[#7A7F85]">Party / Customer</span>
+                <h4 className="text-base font-bold text-[#1A1D20] mt-0.5">
                   {selectedParty?.name}
                 </h4>
               </div>
               <div className="text-right">
-                <span className="text-[10px] font-bold uppercase text-gray-400 block">Transaction Date</span>
-                <span className="font-mono text-xs font-bold text-gray-900 dark:text-gray-100">
+                <span className="text-[10px] font-bold uppercase text-[#7A7F85]">Transaction Date</span>
+                <span className="font-mono-nums text-xs font-bold text-[#1A1D20] block mt-0.5">
                   {formatDate(viewTx.transactionDate)}
                 </span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="card p-3 space-y-1">
-                <span className="text-gray-400 font-bold uppercase text-[10px]">Voucher Details</span>
+              <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1 shadow-xs">
+                <span className="text-[#7A7F85] font-bold uppercase text-[10px]">Voucher Details</span>
                 <div>
-                  <span className="text-gray-500 block">Voucher Type:</span>
+                  <span className="text-[#5F6368] block">Voucher Type:</span>
                   <div className="mt-1">{renderVoucherBadge(viewTx.voucherType)}</div>
                 </div>
                 <div className="pt-1">
-                  <span className="text-gray-500 block">Voucher / Ref No:</span>
-                  <span className="font-mono font-bold text-gray-800 dark:text-gray-200">
+                  <span className="text-[#5F6368] block">Voucher / Ref No:</span>
+                  <span className="font-mono-nums font-bold text-[#1A1D20]">
                     {viewTx.voucherNumber || "—"}
                   </span>
                 </div>
               </div>
 
-              <div className="card p-3 space-y-1">
-                <span className="text-gray-400 font-bold uppercase text-[10px]">Financial Impact</span>
+              <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1 shadow-xs">
+                <span className="text-[#7A7F85] font-bold uppercase text-[10px]">Financial Impact</span>
                 <div>
-                  <span className="text-gray-500 block">Entry Type:</span>
+                  <span className="text-[#5F6368] block">Entry Type:</span>
                   <span
                     className={`font-bold uppercase text-xs ${
-                      viewTx.entryType === "CREDIT" ? "text-blue-600" : "text-emerald-600"
+                      viewTx.entryType === "CREDIT" ? "text-[#0288D1]" : "text-[#2E7D32]"
                     }`}
                   >
                     {viewTx.entryType}
                   </span>
                 </div>
                 <div className="pt-1">
-                  <span className="text-gray-500 block">Amount:</span>
-                  <span className="font-mono text-sm font-black text-gray-900 dark:text-gray-100">
+                  <span className="text-[#5F6368] block">Amount:</span>
+                  <span className="font-mono-nums text-sm font-bold text-[#1A1D20]">
                     {formatCurrency(
                       viewTx.entryType === "CREDIT"
                         ? Number(viewTx.creditAmount || 0)
@@ -645,38 +628,38 @@ export default function LedgerPage() {
               </div>
             </div>
 
-            <div className="card p-3 text-xs space-y-1">
-              <span className="text-gray-400 font-bold uppercase text-[10px]">Particulars / Narrative</span>
-              <p className="font-medium text-gray-800 dark:text-gray-200">{viewTx.particulars}</p>
-              {viewTx.notes && <p className="text-gray-500 italic mt-1">{viewTx.notes}</p>}
+            <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 text-xs space-y-1 shadow-xs">
+              <span className="text-[#7A7F85] font-bold uppercase text-[10px]">Particulars / Narrative</span>
+              <p className="font-medium text-[#1A1D20]">{viewTx.particulars}</p>
+              {viewTx.notes && <p className="text-[#7A7F85] italic mt-1">{viewTx.notes}</p>}
             </div>
 
-            <div className="card p-3 text-xs space-y-2 bg-gray-50 dark:bg-gray-800/50">
-              <span className="text-gray-400 font-bold uppercase text-[10px]">Audit & Traceability</span>
-              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+            <div className="rounded-xl border border-[#D8D5CE] bg-[#FAF8F5] p-3.5 text-xs space-y-2 shadow-xs">
+              <span className="text-[#7A7F85] font-bold uppercase text-[10px]">Audit & Traceability</span>
+              <div className="grid grid-cols-2 gap-2 text-[11px] font-mono-nums">
                 <div>
-                  <span className="text-gray-500 block">Source Entity Type:</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  <span className="text-[#7A7F85] block">Source Entity Type:</span>
+                  <span className="font-semibold text-[#1A1D20]">
                     {viewTx.sourceEntityType || "system_ledger"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-500 block">Source Entity ID:</span>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  <span className="text-[#7A7F85] block">Source Entity ID:</span>
+                  <span className="font-semibold text-[#1A1D20]">
                     {viewTx.sourceEntityId || "N/A"}
                   </span>
                 </div>
               </div>
-              <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between text-[11px] font-mono">
-                <span className="text-gray-500">Post-Transaction Running Balance:</span>
-                <span className="font-black text-purple-700 dark:text-purple-300">
+              <div className="pt-2 border-t border-[#D8D5CE] flex justify-between text-[11px] font-mono-nums">
+                <span className="text-[#5F6368]">Post-Transaction Running Balance:</span>
+                <span className="font-bold text-[#E05638]">
                   {formatCurrency(Math.abs(Number(viewTx.runningBalance || 0)))}{" "}
                   {Number(viewTx.runningBalance || 0) >= 0 ? "Cr" : "Dr"}
                 </span>
               </div>
             </div>
 
-            <div className="flex justify-end pt-3 mt-3 border-t border-gray-100 dark:border-gray-800">
+            <div className="flex justify-end pt-3 mt-3 border-t border-[#D8D5CE]">
               <Button variant="secondary" onClick={() => setViewTx(null)}>
                 Close
               </Button>

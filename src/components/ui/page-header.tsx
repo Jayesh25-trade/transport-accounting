@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 export interface BreadcrumbItem {
   label: string;
@@ -30,38 +30,40 @@ export function PageHeader({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           {eyebrow && (
-            <div className="text-[11px] font-semibold tracking-[0.2em] text-coral uppercase mb-1">
+            <div className="text-[11px] font-bold tracking-[0.18em] text-[#E05638] uppercase mb-1">
               {eyebrow}
             </div>
           )}
           {/* Breadcrumbs */}
           {breadcrumbs && breadcrumbs.length > 0 && (
-            <nav aria-label="Breadcrumb" className="breadcrumb mb-1.5">
-              <Link href="/dashboard" className="inline-flex items-center gap-0.5">
-                <Home size={11} />
+            <nav aria-label="Breadcrumb" className="breadcrumb mb-1.5 flex items-center gap-1.5 text-xs text-[#7A7F85]">
+              <Link href="/dashboard" className="hover:text-[#1A1D20] transition-colors">
+                Dashboard
               </Link>
               {breadcrumbs.map((crumb, idx) => (
                 <React.Fragment key={idx}>
-                  <ChevronRight size={11} className="text-gray-300" />
+                  <ChevronRight size={12} className="text-[#9E9A91]" />
                   {crumb.href && idx < breadcrumbs.length - 1 ? (
-                    <Link href={crumb.href}>{crumb.label}</Link>
+                    <Link href={crumb.href} className="hover:text-[#1A1D20] transition-colors">
+                      {crumb.label}
+                    </Link>
                   ) : (
-                    <span className="text-gray-400">{crumb.label}</span>
+                    <span className="text-[#1A1D20] font-medium">{crumb.label}</span>
                   )}
                 </React.Fragment>
               ))}
             </nav>
           )}
 
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[#1A1D20]">{title}</h1>
           {displaySubtitle && (
-            <p className="text-sm text-gray-500 mt-0.5">{displaySubtitle}</p>
+            <p className="text-sm text-[#5F6368] mt-1">{displaySubtitle}</p>
           )}
         </div>
 
         {/* Actions */}
         {actions && (
-          <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>
+          <div className="flex items-center gap-2.5 flex-shrink-0">{actions}</div>
         )}
       </div>
     </div>

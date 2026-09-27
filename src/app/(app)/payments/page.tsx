@@ -2,24 +2,12 @@
 
 import React, { useState, useMemo } from "react";
 import {
-  Plus,
   Search,
-  Eye,
-  CreditCard,
-  CheckCircle2,
-  AlertCircle,
-  X,
-  Building2,
-  Users,
-  DollarSign,
-  FileText,
-  Clock,
-  ArrowRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, Badge, EmptyState } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/ui/data-table";
-import { useMasterList, useMasterMutation } from "@/lib/use-master-list";
+import { useMasterList } from "@/lib/use-master-list";
 import { useApiClient, ApiError } from "@/lib/api-client";
 import { useFirm } from "@/lib/firm-context";
 import { Modal, Field, FormGrid, FormActions } from "@/components/ui/modal";
@@ -319,13 +307,13 @@ export default function PaymentsPage() {
     {
       key: "paymentDate",
       label: "Date",
-      render: (p) => <span className="text-xs whitespace-nowrap">{formatDate(p.paymentDate)}</span>,
+      render: (p) => <span className="text-xs whitespace-nowrap text-[#5F6368]">{formatDate(p.paymentDate)}</span>,
     },
     {
       key: "partyName",
       label: "Party (Customer)",
       render: (p) => (
-        <span className="font-semibold text-xs text-primary-600 dark:text-primary-400">
+        <span className="font-bold text-xs text-[#E05638]">
           {p.partyName || "—"}
         </span>
       ),
@@ -342,13 +330,13 @@ export default function PaymentsPage() {
     {
       key: "paymentMode",
       label: "Mode",
-      render: (p) => <span className="font-mono text-xs font-semibold">{p.paymentMode}</span>,
+      render: (p) => <span className="font-mono-nums text-xs font-semibold">{p.paymentMode}</span>,
     },
     {
       key: "referenceNumber",
       label: "Reference / UTR",
       render: (p) => (
-        <span className="font-mono text-xs text-gray-500">
+        <span className="font-mono-nums text-xs text-[#7A7F85]">
           {p.referenceNumber || (p.bankName ? `Bank: ${p.bankName}` : "—")}
         </span>
       ),
@@ -358,15 +346,15 @@ export default function PaymentsPage() {
       label: "Bill Ref",
       render: (p) => {
         if (p.paymentType === "ADVANCE") {
-          return <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Unallocated Advance</span>;
+          return <span className="text-xs text-[#0288D1] font-semibold">Unallocated Advance</span>;
         }
         if (p.allocations && p.allocations.length > 0) {
           const billNums = p.allocations
             .map((a) => (a.billNumber ? `#${a.billNumber}` : null))
             .filter(Boolean);
-          return <span className="font-mono text-xs font-bold text-gray-800 dark:text-gray-200">Bill {billNums.join(", ") || "Allocated"}</span>;
+          return <span className="font-mono-nums text-xs font-bold text-[#1A1D20]">Bill {billNums.join(", ") || "Allocated"}</span>;
         }
-        return <span className="text-xs text-gray-400">Against Bill</span>;
+        return <span className="text-xs text-[#7A7F85]">Against Bill</span>;
       },
     },
     {
@@ -374,7 +362,7 @@ export default function PaymentsPage() {
       label: "Amount",
       align: "right",
       render: (p) => (
-        <span className="font-mono text-xs font-black text-emerald-600 dark:text-emerald-400">
+        <span className="font-mono-nums text-xs font-bold text-[#2E7D32]">
           {formatCurrency(p.amount)}
         </span>
       ),
@@ -384,7 +372,7 @@ export default function PaymentsPage() {
       label: "",
       render: (p) => (
         <button
-          className="btn btn-ghost btn-xs text-primary-600 hover:text-primary-800"
+          className="rounded-lg border border-[#D8D5CE] bg-white px-2.5 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#FAF8F5] transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             setViewPayment(p);
@@ -392,23 +380,22 @@ export default function PaymentsPage() {
           title="View Payment Voucher"
           id={`payment-view-${p.id}`}
         >
-          <Eye size={14} />
+          View
         </button>
       ),
     },
   ];
 
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="animate-fade-in space-y-4 text-[#1A1D20]">
       <PageHeader
         title="Payments"
         subtitle="Customer payment vouchers & bill allocations — firm-scoped"
         breadcrumbs={[{ label: "Payments" }]}
         actions={
           <Button
-            variant="primary"
+            variant="coral"
             size="sm"
-            icon={Plus}
             onClick={() => setShowAddModal(true)}
             id="payments-new"
             disabled={firmLoading || !currentFirm}
@@ -420,80 +407,60 @@ export default function PaymentsPage() {
 
       {/* Success Feedback Banner */}
       {feedback && (
-        <div className="card border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
-            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              {feedback}
-            </p>
-          </div>
-          <button onClick={() => setFeedback(null)} className="text-emerald-600 text-xs">
-            <X size={14} />
+        <div className="rounded-xl border border-[#A5D6A7] bg-[#E8F5E9] p-3.5 flex items-center justify-between text-xs text-[#2E7D32]">
+          <p className="font-semibold">{feedback}</p>
+          <button onClick={() => setFeedback(null)} className="font-bold">
+            Close
           </button>
         </div>
       )}
 
       {/* Error Banner */}
       {paymentsError && (
-        <div className="card border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 p-3">
-          <p className="text-xs text-red-600 dark:text-red-400">{paymentsError}</p>
+        <div className="rounded-xl border border-[#D32F2F]/30 bg-[#FDEDED] p-3.5 text-xs text-[#D32F2F]">
+          <p>{paymentsError}</p>
         </div>
       )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="card p-3.5 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-              Total Receipts
-            </span>
-            <span className="text-2xl font-black text-gray-900 dark:text-gray-100 font-mono">
-              {formatCurrency(stats.totalAmount)}
-            </span>
-            <span className="text-xs text-gray-500 block">{stats.totalCount} payment vouchers</span>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-primary-50 dark:bg-primary-950/50 flex items-center justify-center text-primary-600">
-            <CreditCard size={18} />
-          </div>
+        <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
+          <span className="text-[11px] font-bold text-[#7A7F85] uppercase tracking-wider block">
+            Total Receipts
+          </span>
+          <span className="text-2xl font-bold text-[#1A1D20] font-mono-nums mt-1 block">
+            {formatCurrency(stats.totalAmount)}
+          </span>
+          <span className="text-xs text-[#5F6368] block mt-0.5">{stats.totalCount} payment vouchers</span>
         </div>
 
-        <div className="card p-3.5 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-              Against Bill Receipts
-            </span>
-            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-              {formatCurrency(stats.againstBillAmount)}
-            </span>
-            <span className="text-xs text-gray-500 block">{stats.againstBillCount} bill allocations</span>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600">
-            <DollarSign size={18} />
-          </div>
+        <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
+          <span className="text-[11px] font-bold text-[#2E7D32] uppercase tracking-wider block">
+            Against Bill Receipts
+          </span>
+          <span className="text-2xl font-bold text-[#2E7D32] font-mono-nums mt-1 block">
+            {formatCurrency(stats.againstBillAmount)}
+          </span>
+          <span className="text-xs text-[#5F6368] block mt-0.5">{stats.againstBillCount} bill allocations</span>
         </div>
 
-        <div className="card p-3.5 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">
-              Advance Receipts (Unallocated)
-            </span>
-            <span className="text-2xl font-black text-purple-600 dark:text-purple-400 font-mono">
-              {formatCurrency(stats.advanceAmount)}
-            </span>
-            <span className="text-xs text-gray-500 block">{stats.advanceCount} advance vouchers</span>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/50 flex items-center justify-center text-purple-600">
-            <Clock size={18} />
-          </div>
+        <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
+          <span className="text-[11px] font-bold text-[#0288D1] uppercase tracking-wider block">
+            Advance Receipts (Unallocated)
+          </span>
+          <span className="text-2xl font-bold text-[#0288D1] font-mono-nums mt-1 block">
+            {formatCurrency(stats.advanceAmount)}
+          </span>
+          <span className="text-xs text-[#5F6368] block mt-0.5">{stats.advanceCount} advance vouchers</span>
         </div>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="card p-3.5 space-y-3">
+      <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 space-y-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-2">
           {/* Search Bar */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7A7F85]" />
             <input
               type="search"
               placeholder="Search party, UTR, reference, remarks…"
@@ -574,13 +541,13 @@ export default function PaymentsPage() {
 
           {/* Reset Filters */}
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} icon={X}>
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
               Clear Filters
             </Button>
           )}
         </div>
 
-        <div className="flex items-center justify-between text-xs text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex items-center justify-between text-xs text-[#7A7F85] pt-2 border-t border-[#EFECE6]">
           <span>
             {paymentsLoading ? "Loading payments…" : `Showing ${filtered.length} of ${paymentsList.length} payment records`}
           </span>
@@ -594,7 +561,6 @@ export default function PaymentsPage() {
         loading={paymentsLoading}
         emptyState={
           <EmptyState
-            icon={CreditCard}
             title={hasActiveFilters ? "No payments match your filters" : "No payment vouchers recorded yet"}
             description={
               hasActiveFilters
@@ -604,9 +570,8 @@ export default function PaymentsPage() {
             action={
               !hasActiveFilters ? (
                 <Button
-                  variant="primary"
+                  variant="coral"
                   size="sm"
-                  icon={Plus}
                   onClick={() => setShowAddModal(true)}
                 >
                   Add Payment
@@ -629,25 +594,25 @@ export default function PaymentsPage() {
         title="Add Customer Payment Voucher"
         size="lg"
       >
-        <form onSubmit={handleSubmitPayment} noValidate className="space-y-4">
+        <form onSubmit={handleSubmitPayment} noValidate className="space-y-4 text-[#1A1D20]">
           {/* Payment Type Switcher */}
-          <div className="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-200 dark:border-gray-700">
-            <label className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 block mb-2">
+          <div className="p-3.5 bg-[#FAF8F5] rounded-xl border border-[#D8D5CE]">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#5F6368] block mb-2">
               Payment Voucher Type
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setFormField("paymentType", "AGAINST_BILL")}
-                className={`p-3 rounded-lg border text-left transition-all ${
+                className={`p-3.5 rounded-xl border text-left transition-all ${
                   form.paymentType === "AGAINST_BILL"
-                    ? "bg-primary-50 dark:bg-primary-950/40 border-primary-500 text-primary-700 dark:text-primary-300 ring-2 ring-primary-500/20"
-                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600"
+                    ? "bg-[#FDF2F0] border-[#E05638] text-[#E05638] font-bold"
+                    : "bg-white border-[#D8D5CE] text-[#5F6368]"
                 }`}
                 id="payment-type-against-bill"
               >
                 <div className="font-bold text-xs">AGAINST BILL</div>
-                <div className="text-[11px] text-gray-500 mt-0.5">
+                <div className="text-[11px] text-[#7A7F85] mt-0.5">
                   Allocates payment to a specific pending customer bill
                 </div>
               </button>
@@ -655,15 +620,15 @@ export default function PaymentsPage() {
               <button
                 type="button"
                 onClick={() => setFormField("paymentType", "ADVANCE")}
-                className={`p-3 rounded-lg border text-left transition-all ${
+                className={`p-3.5 rounded-xl border text-left transition-all ${
                   form.paymentType === "ADVANCE"
-                    ? "bg-purple-50 dark:bg-purple-950/40 border-purple-500 text-purple-700 dark:text-purple-300 ring-2 ring-purple-500/20"
-                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600"
+                    ? "bg-[#E1F5FE] border-[#0288D1] text-[#0288D1] font-bold"
+                    : "bg-white border-[#D8D5CE] text-[#5F6368]"
                 }`}
                 id="payment-type-advance"
               >
                 <div className="font-bold text-xs">ADVANCE (Unallocated)</div>
-                <div className="text-[11px] text-gray-500 mt-0.5">
+                <div className="text-[11px] text-[#7A7F85] mt-0.5">
                   Records unallocated advance payment against party ledger
                 </div>
               </button>
@@ -700,7 +665,7 @@ export default function PaymentsPage() {
 
           {/* Conditional Bill Selection for AGAINST_BILL */}
           {form.paymentType === "AGAINST_BILL" && (
-            <div className="p-3 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-900/40 space-y-3">
+            <div className="p-3.5 bg-[#FAF8F5] rounded-xl border border-[#D8D5CE] space-y-3">
               <Field
                 label="Select Target Bill"
                 required
@@ -731,18 +696,18 @@ export default function PaymentsPage() {
 
               {/* Live Selected Bill Calculation Box */}
               {selectedBillStats && (
-                <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-800 text-xs grid grid-cols-3 gap-2">
+                <div className="p-3.5 bg-white rounded-xl border border-[#D8D5CE] text-xs grid grid-cols-3 gap-2">
                   <div>
-                    <span className="text-gray-400 block font-semibold uppercase text-[10px]">Net Bill Amount</span>
-                    <span className="font-mono font-bold">{formatCurrency(selectedBillStats.net)}</span>
+                    <span className="text-[#7A7F85] block font-bold uppercase text-[10px]">Net Bill Amount</span>
+                    <span className="font-mono-nums font-bold">{formatCurrency(selectedBillStats.net)}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400 block font-semibold uppercase text-[10px]">Already Received</span>
-                    <span className="font-mono font-semibold text-emerald-600">{formatCurrency(selectedBillStats.received)}</span>
+                    <span className="text-[#7A7F85] block font-bold uppercase text-[10px]">Already Received</span>
+                    <span className="font-mono-nums font-bold text-[#2E7D32]">{formatCurrency(selectedBillStats.received)}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400 block font-semibold uppercase text-[10px]">REMAINING PENDING</span>
-                    <span className="font-mono font-bold text-amber-600">{formatCurrency(selectedBillStats.pending)}</span>
+                    <span className="text-[#7A7F85] block font-bold uppercase text-[10px]">REMAINING PENDING</span>
+                    <span className="font-mono-nums font-bold text-[#ED6C02]">{formatCurrency(selectedBillStats.pending)}</span>
                   </div>
                 </div>
               )}
@@ -751,8 +716,8 @@ export default function PaymentsPage() {
 
           {/* Advance Info Banner */}
           {form.paymentType === "ADVANCE" && (
-            <div className="p-3 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-xl text-xs text-purple-700 dark:text-purple-300">
-              <strong>Unallocated Advance Notice:</strong> This payment will be credited to the customer's account without allocating it to any specific bill. It will remain marked as <code>Unallocated Advance</code>.
+            <div className="p-3.5 bg-[#E1F5FE] border border-[#0288D1]/30 rounded-xl text-xs text-[#0288D1]">
+              <strong>Unallocated Advance Notice:</strong> This payment will be credited to the customer's account without allocating it to any specific bill. It will remain marked as Unallocated Advance.
             </div>
           )}
 
@@ -765,7 +730,7 @@ export default function PaymentsPage() {
                 value={form.amount}
                 onChange={(e) => setFormField("amount", e.target.value)}
                 placeholder="e.g. 15000"
-                className="form-input font-mono font-semibold"
+                className="form-input font-mono-nums font-semibold"
                 id="payment-form-amount"
               />
             </Field>
@@ -795,7 +760,7 @@ export default function PaymentsPage() {
                 value={form.referenceNumber}
                 onChange={(e) => setFormField("referenceNumber", e.target.value)}
                 placeholder="e.g. UTR-90812345"
-                className="form-input font-mono"
+                className="form-input font-mono-nums"
                 id="payment-form-ref"
               />
             </Field>
@@ -824,7 +789,7 @@ export default function PaymentsPage() {
           </Field>
 
           {submitError && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs">
+            <div className="p-3.5 bg-[#FDEDED] border border-[#D32F2F]/30 text-[#D32F2F] rounded-xl text-xs">
               {submitError}
             </div>
           )}
@@ -845,20 +810,20 @@ export default function PaymentsPage() {
         size="md"
       >
         {viewPayment && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
+          <div className="space-y-4 text-[#1A1D20]">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-[#FAF8F5] border border-[#D8D5CE] shadow-xs">
               <div>
-                <span className="text-xs text-gray-400 block font-semibold uppercase">
+                <span className="text-xs text-[#7A7F85] block font-bold uppercase tracking-wider">
                   {viewPayment.paymentType === "AGAINST_BILL" ? "Against Bill Payment" : "Unallocated Advance"}
                 </span>
-                <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                <h3 className="text-base font-bold text-[#1A1D20] mt-0.5">
                   {viewPayment.partyName || "Customer Payment"}
                 </h3>
-                <span className="text-xs text-gray-500">{formatDate(viewPayment.paymentDate)}</span>
+                <span className="text-xs text-[#5F6368]">{formatDate(viewPayment.paymentDate)}</span>
               </div>
 
               <div className="text-right">
-                <span className="text-lg font-black font-mono text-emerald-600 dark:text-emerald-400 block">
+                <span className="text-lg font-bold font-mono-nums text-[#2E7D32] block">
                   {formatCurrency(viewPayment.amount)}
                 </span>
                 <Badge variant={viewPayment.paymentType === "AGAINST_BILL" ? "info" : "neutral"}>
@@ -868,29 +833,29 @@ export default function PaymentsPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="card p-3 space-y-1">
-                <span className="text-gray-400 font-bold uppercase text-[10px]">Reference Info</span>
+              <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1 shadow-xs">
+                <span className="text-[#7A7F85] font-bold uppercase text-[10px] tracking-wider">Reference Info</span>
                 <div>
-                  <span className="text-gray-500 block">Ref / UTR:</span>
-                  <span className="font-mono font-semibold">{viewPayment.referenceNumber || "—"}</span>
+                  <span className="text-[#5F6368] block">Ref / UTR:</span>
+                  <span className="font-mono-nums font-semibold">{viewPayment.referenceNumber || "—"}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500 block">Bank Name:</span>
+                  <span className="text-[#5F6368] block">Bank Name:</span>
                   <span>{viewPayment.bankName || "—"}</span>
                 </div>
               </div>
 
-              <div className="card p-3 space-y-1">
-                <span className="text-gray-400 font-bold uppercase text-[10px]">Allocation Status</span>
+              <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1 shadow-xs">
+                <span className="text-[#7A7F85] font-bold uppercase text-[10px] tracking-wider">Allocation Status</span>
                 <div>
-                  <span className="text-gray-500 block">Status:</span>
+                  <span className="text-[#5F6368] block">Status:</span>
                   <span className="font-semibold">
                     {viewPayment.isFullyAllocated ? "Fully Allocated" : "Unallocated"}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-500 block">Unallocated Balance:</span>
-                  <span className="font-mono font-semibold text-purple-600">
+                  <span className="text-[#5F6368] block">Unallocated Balance:</span>
+                  <span className="font-mono-nums font-semibold text-[#0288D1]">
                     {formatCurrency(viewPayment.unallocatedAmount)}
                   </span>
                 </div>
@@ -899,26 +864,26 @@ export default function PaymentsPage() {
 
             {/* Allocation breakdown */}
             {viewPayment.allocations && viewPayment.allocations.length > 0 && (
-              <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-3 bg-gray-50/50 dark:bg-gray-800/30">
-                <span className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-2">
+              <div className="border border-[#D8D5CE] rounded-xl p-3.5 bg-[#FAF8F5] shadow-xs">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#5F6368] block mb-2">
                   Allocated Bill Invoice
                 </span>
                 {viewPayment.allocations.map((a) => (
-                  <div key={a.id} className="flex justify-between items-center text-xs font-mono">
+                  <div key={a.id} className="flex justify-between items-center text-xs font-mono-nums">
                     <span>Bill {a.billNumber ? `#${a.billNumber}` : a.billId}</span>
-                    <span className="font-bold text-emerald-600">{formatCurrency(a.allocatedAmount)}</span>
+                    <span className="font-bold text-[#2E7D32]">{formatCurrency(a.allocatedAmount)}</span>
                   </div>
                 ))}
               </div>
             )}
 
             {/* Ledger entry notice */}
-            <div className="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl text-xs text-gray-500">
+            <div className="p-3.5 bg-[#FAF8F5] border border-[#D8D5CE] rounded-xl text-xs text-[#5F6368]">
               <strong>Ledger Posting:</strong> Posted as DEBIT entry under <code>{viewPayment.paymentMode === "CASH" ? "PAYMENT_CASH" : "PAYMENT_BANK"}</code>.
             </div>
 
             {viewPayment.remarks && (
-              <div className="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl text-xs text-gray-600 dark:text-gray-300">
+              <div className="p-3.5 bg-white border border-[#D8D5CE] rounded-xl text-xs text-[#5F6368]">
                 <strong>Remarks:</strong> {viewPayment.remarks}
               </div>
             )}

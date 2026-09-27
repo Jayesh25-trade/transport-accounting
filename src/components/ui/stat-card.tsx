@@ -17,10 +17,10 @@ interface StatCardProps {
 }
 
 const TONE_BAR_STYLES: Record<StatTone, string> = {
-  coral: "border-t-4 border-coral",
-  ink: "border-t-4 border-ink",
-  sun: "border-t-4 border-sun",
-  turq: "border-t-4 border-turq",
+  coral: "border-t-4 border-[#E05638]",
+  ink: "border-t-4 border-[#1A1D20]",
+  sun: "border-t-4 border-[#D97706]",
+  turq: "border-t-4 border-[#0D9488]",
   neutral: "",
 };
 
@@ -31,7 +31,7 @@ export function StatCard({
   hint,
   tone,
   icon: Icon,
-  iconColor = "#6366f1",
+  iconColor = "#E05638",
   trend,
   trendLabel,
   className,
@@ -40,39 +40,39 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "stat-card",
+        "rounded-2xl border border-[#D8D5CE] bg-white p-6 shadow-xs transition-shadow hover:shadow-md",
         tone && TONE_BAR_STYLES[tone],
         className
       )}
     >
       <div className="flex items-start justify-between">
-        <div className="stat-label">{label}</div>
+        <div className="text-xs font-semibold tracking-wider text-[#5F6368] uppercase">{label}</div>
         {Icon && (
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: `${iconColor}15`, color: iconColor }}
+            style={{ background: `${iconColor}12`, color: iconColor }}
           >
             <Icon size={16} />
           </div>
         )}
       </div>
-      <div className="stat-value tnum">{value}</div>
+      <div className="text-2xl font-bold tracking-tight text-[#1A1D20] mt-2 font-mono-nums">{value}</div>
       {(displaySub || trendLabel) && (
-        <div className="flex items-center gap-1.5 mt-1">
+        <div className="flex items-center gap-1.5 mt-1.5">
           {trendLabel && trend && (
             <span
               className={cn(
                 "text-xs font-semibold",
-                trend === "up" && "text-success",
-                trend === "down" && "text-danger",
-                trend === "neutral" && "text-gray-500"
+                trend === "up" && "text-[#2E7D32]",
+                trend === "down" && "text-[#D32F2F]",
+                trend === "neutral" && "text-[#7A7F85]"
               )}
             >
               {trend === "up" ? "↑" : trend === "down" ? "↓" : "→"}{" "}
               {trendLabel}
             </span>
           )}
-          {displaySub && <span className="stat-sub">{displaySub}</span>}
+          {displaySub && <span className="text-xs text-[#7A7F85]">{displaySub}</span>}
         </div>
       )}
     </div>
@@ -82,7 +82,7 @@ export function StatCard({
 /* ─── Skeleton ─────────────────────────────────────────────── */
 export function StatCardSkeleton() {
   return (
-    <div className="stat-card">
+    <div className="rounded-2xl border border-[#D8D5CE] bg-white p-6 shadow-xs">
       <div className="skeleton h-3 w-24 mb-3 rounded" />
       <div className="skeleton h-7 w-32 mb-2 rounded" />
       <div className="skeleton h-2.5 w-16 rounded" />

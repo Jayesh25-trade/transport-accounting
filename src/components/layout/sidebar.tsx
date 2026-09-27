@@ -6,18 +6,18 @@ import { usePathname } from "next/navigation";
 import { useFirm } from "@/lib/firm-context";
 import { cn } from "@/lib/utils";
 
-const NAV: { href: string; label: string; icon: string; section?: string }[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/daily-book", label: "Daily Book", icon: "📒", section: "Operations" },
-  { href: "/driver-vouchers", label: "Driver Vouchers", icon: "🚚", section: "Operations" },
-  { href: "/billing/bills", label: "Bills", icon: "🧾", section: "Accounts" },
-  { href: "/billing/new", label: "Create Bill", icon: "➕", section: "Accounts" },
-  { href: "/payments", label: "Payments", icon: "💳", section: "Accounts" },
-  { href: "/ledger", label: "Ledger", icon: "📖", section: "Accounts" },
-  { href: "/masters/parties", label: "Masters", icon: "🗂️", section: "Setup" },
-  { href: "/reports/outstanding", label: "Outstanding", icon: "📌", section: "Reports" },
-  { href: "/reports/aging", label: "Aging Analysis", icon: "⏳", section: "Reports" },
-  { href: "/settings", label: "Settings", icon: "⚙️", section: "Setup" },
+const NAV: { href: string; label: string; section?: string }[] = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/daily-book", label: "Daily Book", section: "Operations" },
+  { href: "/driver-vouchers", label: "Driver Vouchers", section: "Operations" },
+  { href: "/billing/bills", label: "Bills", section: "Accounts" },
+  { href: "/billing/new", label: "Create Bill", section: "Accounts" },
+  { href: "/payments", label: "Payments", section: "Accounts" },
+  { href: "/ledger", label: "Ledger", section: "Accounts" },
+  { href: "/masters/parties", label: "Masters", section: "Setup" },
+  { href: "/reports/outstanding", label: "Outstanding", section: "Reports" },
+  { href: "/reports/aging", label: "Aging Analysis", section: "Reports" },
+  { href: "/settings", label: "Settings", section: "Setup" },
 ];
 
 export function FirmSwitcher({ compact }: { compact?: boolean }) {
@@ -25,47 +25,54 @@ export function FirmSwitcher({ compact }: { compact?: boolean }) {
 
   if (loading || !currentFirm) return null;
 
+  const inactiveFirms = firms.filter((f) => f.id !== currentFirm.id);
+
   return (
-    <div className={cn("rounded-2xl bg-white/6 p-1.5", compact && "flex gap-1.5")}>
-      {!compact && (
-        <div className="px-2 pt-1 pb-1.5 text-[10px] font-semibold tracking-[0.2em] text-ink-foreground/45 uppercase">
-          Active firm
+    <div className={cn("rounded-xl border border-[#D8D5CE] bg-white p-3 shadow-xs flex flex-col gap-2.5", compact && "p-2")}>
+      {/* Active Firm Container - Informational context only */}
+      <div>
+        <div className="px-1 text-[10px] font-semibold tracking-[0.15em] text-[#7A7F85] uppercase">
+          Active Firm
+        </div>
+        <div className="mt-1 flex items-center gap-2 rounded-lg bg-[#FAF8F5] px-2.5 py-1.5 border border-[#EFECE6]">
+          <span className="size-2 rounded-full bg-[#2E7D32]" />
+          <span className="text-[13px] font-bold text-[#1A1D20] truncate">
+            {currentFirm.name}
+          </span>
+        </div>
+      </div>
+
+      {/* Switch Firm Options - Inactive firms only */}
+      {inactiveFirms.length > 0 && (
+        <div className="pt-1 border-t border-[#EFECE6]">
+          <div className="px-1 mb-1 text-[10px] font-semibold tracking-[0.15em] text-[#7A7F85] uppercase">
+            Switch Firm
+          </div>
+          <div className="flex flex-col gap-1">
+            {inactiveFirms.map((f) => {
+              const short = f.name
+                .split(" ")
+                .map((w) => w[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase();
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setCurrentFirm(f.id)}
+                  className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[12px] font-medium text-[#5F6368] hover:bg-[#F4F1EA] hover:text-[#1A1D20] transition-colors"
+                >
+                  <span className="grid size-5 shrink-0 place-items-center rounded bg-[#EFECE6] text-[9px] font-bold text-[#1A1D20]">
+                    {short}
+                  </span>
+                  <span className="truncate">{f.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
-      <div className={cn("flex gap-1.5", !compact && "flex-col")}>
-        {firms.map((f) => {
-          const short = f.name
-            .split(" ")
-            .map((w) => w[0])
-            .join("")
-            .slice(0, 2)
-            .toUpperCase();
-          const isActive = f.id === currentFirm.id;
-          return (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setCurrentFirm(f.id)}
-              className={cn(
-                "flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[12px] font-semibold transition-colors",
-                isActive
-                  ? "bg-coral text-coral-foreground"
-                  : "text-ink-foreground/55 hover:bg-white/8 hover:text-ink-foreground"
-              )}
-            >
-              <span
-                className={cn(
-                  "grid size-5 shrink-0 place-items-center rounded-md text-[9px] font-bold",
-                  isActive ? "bg-white/25" : "bg-white/10"
-                )}
-              >
-                {short}
-              </span>
-              <span className="truncate">{f.name}</span>
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -75,7 +82,7 @@ export function NavList({ onNavigate }: { onNavigate?: () => void }) {
   let lastSection: string | undefined;
 
   return (
-    <nav className="flex flex-col gap-1 text-[13px] font-medium">
+    <nav className="flex flex-col gap-0.5 text-[13px] font-medium">
       {NAV.map((item) => {
         const showSection = item.section && item.section !== lastSection;
         lastSection = item.section;
@@ -103,7 +110,7 @@ export function NavList({ onNavigate }: { onNavigate?: () => void }) {
         return (
           <div key={item.href}>
             {showSection && (
-              <div className="mt-4 mb-1.5 px-3.5 text-[10px] font-semibold tracking-[0.2em] text-ink-foreground/35 uppercase">
+              <div className="mt-4 mb-1.5 px-3 text-[10px] font-bold tracking-[0.18em] text-[#7A7F85] uppercase">
                 {item.section}
               </div>
             )}
@@ -111,13 +118,12 @@ export function NavList({ onNavigate }: { onNavigate?: () => void }) {
               href={item.href}
               onClick={handleLinkClick}
               className={cn(
-                "flex items-center gap-2.5 rounded-2xl px-3.5 py-2.5 transition-colors",
+                "flex items-center rounded-lg px-3 py-2 transition-all duration-150",
                 active
-                  ? "bg-coral font-semibold text-coral-foreground"
-                  : "text-ink-foreground/65 hover:bg-white/6 hover:text-ink-foreground"
+                  ? "bg-[#E05638] font-semibold text-white shadow-xs"
+                  : "text-[#5F6368] hover:bg-[#EFECE6] hover:text-[#1A1D20]"
               )}
             >
-              <span aria-hidden>{item.icon}</span>
               <span>{item.label}</span>
             </Link>
           </div>
@@ -167,7 +173,7 @@ export function Sidebar() {
       {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
-          className="sidebar-backdrop fixed inset-0 z-30 bg-ink/60 lg:hidden"
+          className="sidebar-backdrop fixed inset-0 z-30 bg-black/40 backdrop-blur-xs lg:hidden"
           onClick={closeMobileSidebar}
           aria-hidden="true"
         />
@@ -176,20 +182,20 @@ export function Sidebar() {
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "sidebar fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col gap-5 overflow-y-auto bg-ink p-5 text-ink-foreground lg:flex",
-          mobileOpen && "mobile-open flex"
+          "sidebar fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col gap-4 overflow-y-auto bg-[#FAF8F5] border-r border-[#D8D5CE] p-4 text-[#1A1D20] lg:flex",
+          mobileOpen && "mobile-open flex bg-[#FAF8F5]"
         )}
       >
         {/* Brand Header */}
-        <div className="flex items-center gap-2.5">
-          <div className="font-display grid size-10 place-items-center rounded-2xl bg-coral text-xl font-bold text-coral-foreground">
+        <div className="flex items-center gap-2.5 px-1 py-1">
+          <div className="font-display grid size-9 place-items-center rounded-xl bg-[#E05638] text-base font-bold text-white shadow-xs">
             {shortName}
           </div>
           <div>
-            <div className="font-display text-lg leading-none font-bold">
+            <div className="font-display text-base leading-none font-bold text-[#1A1D20]">
               {firstName}
             </div>
-            <div className="mt-0.5 text-[10px] tracking-[0.2em] text-ink-foreground/50 uppercase">
+            <div className="mt-0.5 text-[10px] font-semibold tracking-[0.18em] text-[#7A7F85] uppercase">
               Transport Books
             </div>
           </div>
@@ -202,14 +208,14 @@ export function Sidebar() {
         <NavList />
 
         {/* Working Firm Footer Card */}
-        <div className="mt-auto rounded-3xl bg-white/6 p-4">
-          <div className="text-[10px] tracking-[0.18em] text-ink-foreground/45 uppercase">
-            Working in
+        <div className="mt-auto rounded-xl border border-[#D8D5CE] bg-white p-3 shadow-xs">
+          <div className="text-[10px] font-semibold tracking-[0.18em] text-[#7A7F85] uppercase">
+            Working Context
           </div>
-          <div className="font-display mt-1 text-xl font-bold">
+          <div className="font-display mt-1 text-sm font-bold text-[#1A1D20] truncate">
             {currentFirm?.name || "Transport App"}
           </div>
-          <div className="mt-1 text-[11px] text-ink-foreground/55">
+          <div className="mt-0.5 text-[11px] text-[#5F6368]">
             CODE {currentFirm?.code || "N/A"}
           </div>
         </div>

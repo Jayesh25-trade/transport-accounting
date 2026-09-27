@@ -5,14 +5,8 @@ import { useFirm } from "@/lib/firm-context";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, Badge } from "@/components/ui/primitives";
 import {
-  FileText,
   Search,
   RefreshCw,
-  Eye,
-  Calendar,
-  Truck,
-  AlertCircle,
-  Clock,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { DriverVoucherDetailModal } from "@/components/driver-vouchers/driver-voucher-detail-modal";
@@ -127,26 +121,28 @@ export default function DriverVouchersPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-[#1A1D20]">
       {/* Header */}
       <PageHeader
         title="Driver Vouchers"
         subtitle="Operational trip advances & driver expense vouchers (Accounting Status: PENDING CONFIRMATION)"
         actions={
-          <Button variant="secondary" size="sm" onClick={fetchVouchers} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} />
+          <button
+            type="button"
+            onClick={fetchVouchers}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#D8D5CE] bg-white px-3.5 py-2 text-xs font-semibold text-[#1A1D20] shadow-xs hover:bg-[#FAF8F5] disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
-          </Button>
+          </button>
         }
       />
 
       {/* Error Alert */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex items-center justify-between text-red-700 text-xs">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={16} className="text-red-500 shrink-0" />
-            <span>{error}</span>
-          </div>
+        <div className="p-4 rounded-xl bg-[#FDEDED] border border-[#D32F2F]/30 flex items-center justify-between text-[#D32F2F] text-xs">
+          <span>{error}</span>
           <Button variant="secondary" size="sm" onClick={fetchVouchers}>
             Retry
           </Button>
@@ -154,101 +150,95 @@ export default function DriverVouchersPage() {
       )}
 
       {/* Notice Banner */}
-      <div className="bg-amber-50 border border-amber-200 rounded p-3.5 text-xs text-amber-900 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        <div>
-          <span className="font-bold text-amber-950">Read-Only Accounting Status (Pending Confirmation):</span> Driver Vouchers are automatically synchronized 1-to-1 from Daily Book entries. In accordance with client specifications, accounting Dr/Cr treatment is pending confirmation and **no ledger postings or payment entries** have been generated.
-        </div>
+      <div className="bg-[#FFF4E5] border border-[#ED6C02]/30 rounded-xl p-4 text-xs text-[#92400E]">
+        <span className="font-bold text-[#78350F]">Read-Only Accounting Status (Pending Confirmation):</span> Driver Vouchers are automatically synchronized 1-to-1 from Daily Book entries. In accordance with client specifications, accounting Dr/Cr treatment is pending confirmation and no ledger postings or payment entries have been generated.
       </div>
 
       {/* Metrics Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-        <div className="bg-white border border-slate-200 rounded p-3 shadow-sm">
-          <p className="text-xs font-medium text-slate-500 flex items-center gap-1">
-            <Clock className="w-3.5 h-3.5 text-blue-500" /> Total Vouchers
-          </p>
-          <p className="text-lg font-bold text-slate-900 mt-1">{metrics.totalVouchers}</p>
+        <div className="bg-white border border-[#D8D5CE] rounded-xl p-3.5 shadow-xs">
+          <p className="text-[11px] font-bold text-[#7A7F85] uppercase tracking-wider">Total Vouchers</p>
+          <p className="text-xl font-bold text-[#1A1D20] font-mono-nums mt-1">{metrics.totalVouchers}</p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded p-3 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">Total Advance</p>
-          <p className="text-sm font-bold text-slate-900 font-mono mt-1">{formatCurrency(metrics.totalAdvance)}</p>
+        <div className="bg-white border border-[#D8D5CE] rounded-xl p-3.5 shadow-xs">
+          <p className="text-[11px] font-bold text-[#7A7F85] uppercase tracking-wider">Total Advance</p>
+          <p className="text-sm font-bold text-[#1A1D20] font-mono-nums mt-1">{formatCurrency(metrics.totalAdvance)}</p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded p-3 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">Total Cash</p>
-          <p className="text-sm font-bold text-slate-900 font-mono mt-1">{formatCurrency(metrics.totalCash)}</p>
+        <div className="bg-white border border-[#D8D5CE] rounded-xl p-3.5 shadow-xs">
+          <p className="text-[11px] font-bold text-[#7A7F85] uppercase tracking-wider">Total Cash</p>
+          <p className="text-sm font-bold text-[#1A1D20] font-mono-nums mt-1">{formatCurrency(metrics.totalCash)}</p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded p-3 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">Total Diesel</p>
-          <p className="text-sm font-bold text-slate-900 font-mono mt-1">{formatCurrency(metrics.totalDiesel)}</p>
+        <div className="bg-white border border-[#D8D5CE] rounded-xl p-3.5 shadow-xs">
+          <p className="text-[11px] font-bold text-[#7A7F85] uppercase tracking-wider">Total Diesel</p>
+          <p className="text-sm font-bold text-[#1A1D20] font-mono-nums mt-1">{formatCurrency(metrics.totalDiesel)}</p>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded p-3 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">Total A/c</p>
-          <p className="text-sm font-bold text-slate-900 font-mono mt-1">{formatCurrency(metrics.totalAc)}</p>
+        <div className="bg-white border border-[#D8D5CE] rounded-xl p-3.5 shadow-xs">
+          <p className="text-[11px] font-bold text-[#7A7F85] uppercase tracking-wider">Total A/c</p>
+          <p className="text-sm font-bold text-[#1A1D20] font-mono-nums mt-1">{formatCurrency(metrics.totalAc)}</p>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded p-3 shadow-sm">
-          <p className="text-xs font-semibold text-blue-700">Total Operational</p>
-          <p className="text-sm font-extrabold text-blue-900 font-mono mt-1">{formatCurrency(metrics.totalExpense)}</p>
+        <div className="bg-[#FAF8F5] border border-[#E05638]/40 rounded-xl p-3.5 shadow-xs">
+          <p className="text-[11px] font-bold text-[#E05638] uppercase tracking-wider">Total Operational</p>
+          <p className="text-sm font-bold text-[#E05638] font-mono-nums mt-1">{formatCurrency(metrics.totalExpense)}</p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white border border-slate-200 rounded p-4 shadow-sm space-y-3">
+      <div className="bg-white border border-[#D8D5CE] rounded-xl p-4 shadow-xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#7A7F85]" />
             <input
               type="text"
               placeholder="Search truck, route, remarks..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="form-input pl-9 text-xs"
             />
           </div>
 
           {/* Truck Filter */}
-          <div className="relative">
-            <Truck className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <div>
             <input
               type="text"
               placeholder="Filter by Truck No..."
               value={truckFilter}
               onChange={(e) => setTruckFilter(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="form-input text-xs"
             />
           </div>
 
           {/* Start Date */}
-          <div className="relative">
-            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <div>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="form-input text-xs"
+              title="Start date"
             />
           </div>
 
           {/* End Date */}
-          <div className="relative">
-            <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <div>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="form-input text-xs"
+              title="End date"
             />
           </div>
         </div>
 
         {(search || startDate || endDate || truckFilter) && (
           <div className="flex justify-end pt-1">
-            <button onClick={handleClearFilters} className="text-xs text-slate-500 hover:text-slate-800 underline">
+            <button onClick={handleClearFilters} className="text-xs text-[#5F6368] hover:text-[#1A1D20] underline">
               Clear Filters
             </button>
           </div>
@@ -256,10 +246,10 @@ export default function DriverVouchersPage() {
       </div>
 
       {/* Vouchers Table */}
-      <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+      <div className="bg-white border border-[#D8D5CE] rounded-xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left text-slate-700">
-            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+          <table className="w-full text-xs text-left text-[#1A1D20] border-collapse">
+            <thead className="bg-[#FAF8F5] text-[#5F6368] font-semibold border-b border-[#D8D5CE] uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="px-4 py-3 text-center">Daily Entry #</th>
                 <th className="px-4 py-3">Voucher Date</th>
@@ -274,18 +264,17 @@ export default function DriverVouchersPage() {
                 <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-[#EFECE6]">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-500" />
+                  <td colSpan={11} className="px-4 py-12 text-center text-[#7A7F85]">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-[#E05638]" />
                     Loading driver vouchers...
                   </td>
                 </tr>
               ) : vouchers.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-4 py-12 text-center text-slate-400">
-                    <FileText className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                  <td colSpan={11} className="px-4 py-12 text-center text-[#7A7F85]">
                     No driver vouchers found matching filter criteria.
                   </td>
                 </tr>
@@ -298,30 +287,30 @@ export default function DriverVouchersPage() {
                   const total = adv + csh + dsl + acVal;
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 text-center font-mono font-bold text-blue-600">
+                    <tr key={item.id} className="hover:bg-[#FAF8F5] transition-colors">
+                      <td className="px-4 py-3 text-center font-mono-nums font-bold text-[#E05638]">
                         #{item.dailyEntrySrNo}
                       </td>
-                      <td className="px-4 py-3 font-mono text-slate-900">{formatDate(item.voucherDate)}</td>
-                      <td className="px-4 py-3 font-semibold uppercase text-slate-900">
+                      <td className="px-4 py-3 font-mono-nums text-[#1A1D20]">{formatDate(item.voucherDate)}</td>
+                      <td className="px-4 py-3 font-bold uppercase text-[#1A1D20] font-mono-nums">
                         {item.truckNumberRaw || "-"}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-[#5F6368]">
                         {item.fromLocationRaw || "-"} → {item.toLocationRaw || "-"}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-900">
+                      <td className="px-4 py-3 text-right font-mono-nums text-[#1A1D20]">
                         {adv > 0 ? formatCurrency(adv) : "-"}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-900">
+                      <td className="px-4 py-3 text-right font-mono-nums text-[#1A1D20]">
                         {csh > 0 ? formatCurrency(csh) : "-"}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-900">
+                      <td className="px-4 py-3 text-right font-mono-nums text-[#1A1D20]">
                         {dsl > 0 ? formatCurrency(dsl) : "-"}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-slate-900">
+                      <td className="px-4 py-3 text-right font-mono-nums text-[#1A1D20]">
                         {acVal > 0 ? formatCurrency(acVal) : "-"}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-slate-900">
+                      <td className="px-4 py-3 text-right font-mono-nums font-bold text-[#1A1D20]">
                         {formatCurrency(total)}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -330,14 +319,13 @@ export default function DriverVouchersPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <button
+                          type="button"
                           onClick={() => handleViewVoucher(item)}
-                          className="h-7 px-2 text-xs text-blue-600 hover:text-blue-800"
+                          className="rounded-lg border border-[#D8D5CE] bg-white px-2.5 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#FAF8F5] transition-colors"
                         >
-                          <Eye className="w-3.5 h-3.5 mr-1" /> View
-                        </Button>
+                          View
+                        </button>
                       </td>
                     </tr>
                   );
