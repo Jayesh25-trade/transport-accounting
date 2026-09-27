@@ -1,29 +1,29 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Plus,
   Search,
   Pencil,
   Eye,
-  BookOpen,
   CheckCircle2,
-  Clock,
-  Truck as TruckIcon,
   X,
-  Users,
-  Scale,
-  DollarSign,
   Lock,
+  ArrowUpRight,
+  Filter,
+  Calendar,
+  AlertCircle,
+  RotateCcw,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Button, Badge, EmptyState } from "@/components/ui/primitives";
-import { DataTable, type Column } from "@/components/ui/data-table";
+import { Button, Badge, EmptyState, Panel } from "@/components/ui/primitives";
+import { TableShell, Th, Td } from "@/components/ui/data-table";
 import { useMasterList, useMasterMutation } from "@/lib/use-master-list";
 import { useFirm } from "@/lib/firm-context";
-import { Modal, Field, FormGrid, FormActions } from "@/components/ui/modal";
+import { Modal, Field, FormGrid } from "@/components/ui/modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useApiClient } from "@/lib/api-client";
 
 // ─── Types (matching DB schema & API response) ────────────────
 export interface DailyEntryRecord {
@@ -63,7 +63,6 @@ export interface DailyEntryRecord {
   toLocationName?: string | null;
 
   // Billing status — returned by API (joined from trips + bills)
-  // Used to determine whether Edit button should be shown or locked.
   isBilled?: boolean | null;
   billId?: string | null;
   billNumber?: number | null;
@@ -184,12 +183,22 @@ function formatTons(val: number | string | null | undefined): string {
   return `${num.toFixed(3)} T`;
 }
 
-function formatMoney(val: number | string | null | undefined): string {
-  if (val === null || val === undefined || val === "" || Number(val) === 0) return "—";
-  return formatCurrency(val);
+function StatusBadge({ status }: { status: "RECEIVED" | "PENDING" }) {
+  if (status === "RECEIVED") {
+    return (
+      <span className="inline-flex items-center rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700 border border-teal-200">
+        Received — Billable
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 border border-amber-200">
+      Pending — Unbillable
+    </span>
+  );
 }
 
-// ─── Entry Form Component ─────────────────────────────────────
+// ─── Entry Form Component (Matches Lovable visual form) ──────
 interface DailyEntryFormProps {
   initial?: FormState;
   parties: MasterParty[];
@@ -213,7 +222,7 @@ function DailyEntryForm({
   onCancel,
   loading,
   error,
-  submitLabel = "Save Entry",
+  submitLabel = "Save entry",
 }: DailyEntryFormProps) {
   const [form, setForm] = useState<FormState>(initial || createInitialFormState());
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
@@ -284,442 +293,358 @@ function DailyEntryForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      {/* 1. TRIP INFORMATION */}
-      <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-900/30">
-        <div className="flex items-center gap-2 mb-3">
-          <TruckIcon size={16} className="text-primary-500" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-            Trip Information
-          </h3>
-        </div>
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Field label="Sr No" required error={errors.srNo}>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={form.srNo}
-                onChange={(e) => set("srNo", e.target.value)}
-                placeholder="e.g. 1"
-                className="form-input font-mono font-medium"
-                id="daily-form-srno"
-              />
-            </Field>
-            <Field label="Date" required error={errors.entryDate}>
-              <input
-                type="date"
-                value={form.entryDate}
-                onChange={(e) => set("entryDate", e.target.value)}
-                className="form-input"
-                id="daily-form-date"
-              />
-            </Field>
-            <Field label="LR No" error={errors.lrNumber}>
-              <input
-                type="text"
-                value={form.lrNumber}
-                onChange={(e) => set("lrNumber", e.target.value)}
-                placeholder="e.g. LR-9082"
-                className="form-input font-mono"
-                id="daily-form-lrno"
-              />
-            </Field>
-          </div>
+    <form onSubmit={handleSubmit} noValidate className="grid gap-4 md:grid-cols-3 xl:grid-cols-4 text-xs">
+      <Field label="Sr No" required error={errors.srNo}>
+        <input
+          type="number"
+          min="1"
+          step="1"
+          value={form.srNo}
+          onChange={(e) => set("srNo", e.target.value)}
+          placeholder="e.g. 1"
+          className="form-input font-mono font-medium"
+          id="daily-form-srno"
+        />
+      </Field>
 
-          <FormGrid cols={2}>
-            <Field label="Truck No (Master)" hint="Select registered truck or enter custom below">
-              <select
-                value={form.truckId}
-                onChange={(e) => {
-                  const selectedId = e.target.value;
-                  set("truckId", selectedId);
-                  if (selectedId) {
-                    const found = trucks.find((t) => t.id === selectedId);
-                    if (found) set("truckNumberRaw", found.truckNumber);
-                  }
-                }}
-                className="form-input"
-                id="daily-form-truck-select"
-              >
-                <option value="">-- Select Truck Master --</option>
-                {trucks.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.truckNumber}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Truck No (Raw Text)" hint="Used if truck not in master list">
-              <input
-                type="text"
-                value={form.truckNumberRaw}
-                onChange={(e) => set("truckNumberRaw", e.target.value)}
-                placeholder="e.g. MH06BW0111"
-                className="form-input uppercase font-mono"
-                id="daily-form-truck-raw"
-              />
-            </Field>
-          </FormGrid>
+      <Field label="Date" required error={errors.entryDate}>
+        <input
+          type="date"
+          value={form.entryDate}
+          onChange={(e) => set("entryDate", e.target.value)}
+          className="form-input"
+          id="daily-form-date"
+        />
+      </Field>
 
-          <FormGrid cols={2}>
-            <Field label="From Location">
-              <div className="space-y-1.5">
-                <select
-                  value={form.fromLocationId}
-                  onChange={(e) => {
-                    const selId = e.target.value;
-                    set("fromLocationId", selId);
-                    if (selId) {
-                      const loc = locations.find((l) => l.id === selId);
-                      if (loc) set("fromLocationRaw", loc.name);
-                    }
-                  }}
-                  className="form-input"
-                  id="daily-form-from-select"
-                >
-                  <option value="">-- Select From Location --</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={form.fromLocationRaw}
-                  onChange={(e) => set("fromLocationRaw", e.target.value)}
-                  placeholder="Or enter location name..."
-                  className="form-input text-xs"
-                  id="daily-form-from-raw"
-                />
-              </div>
-            </Field>
+      <Field label="Truck No (Master)">
+        <select
+          value={form.truckId}
+          onChange={(e) => {
+            const selectedId = e.target.value;
+            set("truckId", selectedId);
+            if (selectedId) {
+              const found = trucks.find((t) => t.id === selectedId);
+              if (found) set("truckNumberRaw", found.truckNumber);
+            }
+          }}
+          className="form-input"
+          id="daily-form-truck-select"
+        >
+          <option value="">-- Select Truck Master --</option>
+          {trucks.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.truckNumber}
+            </option>
+          ))}
+        </select>
+      </Field>
 
-            <Field label="To Location">
-              <div className="space-y-1.5">
-                <select
-                  value={form.toLocationId}
-                  onChange={(e) => {
-                    const selId = e.target.value;
-                    set("toLocationId", selId);
-                    if (selId) {
-                      const loc = locations.find((l) => l.id === selId);
-                      if (loc) set("toLocationRaw", loc.name);
-                    }
-                  }}
-                  className="form-input"
-                  id="daily-form-to-select"
-                >
-                  <option value="">-- Select To Location --</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={form.toLocationRaw}
-                  onChange={(e) => set("toLocationRaw", e.target.value)}
-                  placeholder="Or enter location name..."
-                  className="form-input text-xs"
-                  id="daily-form-to-raw"
-                />
-              </div>
-            </Field>
-          </FormGrid>
-        </div>
-      </div>
+      <Field label="Truck No (Raw Text)" hint="If truck not in master list">
+        <input
+          type="text"
+          value={form.truckNumberRaw}
+          onChange={(e) => set("truckNumberRaw", e.target.value)}
+          placeholder="e.g. MH06BW0111"
+          className="form-input uppercase font-mono"
+          id="daily-form-truck-raw"
+        />
+      </Field>
 
-      {/* 2. WEIGHT */}
-      <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-900/30">
-        <div className="flex items-center gap-2 mb-3">
-          <Scale size={16} className="text-blue-500" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-            Weight Details (in Metric Tons)
-          </h3>
-        </div>
-        <FormGrid cols={2}>
-          <Field label="N-Weight (Loading Wt)" error={errors.nWeight} hint="Net / Loading weight in Metric Tons (MT)">
-            <div className="relative">
-              <input
-                type="number"
-                step="0.001"
-                min="0"
-                value={form.nWeight}
-                onChange={(e) => set("nWeight", e.target.value)}
-                placeholder="e.g. 40.500"
-                className="form-input font-mono pr-12"
-                id="daily-form-nweight"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold pointer-events-none">
-                MT
-              </span>
-            </div>
-          </Field>
+      <Field label="LR No" error={errors.lrNumber}>
+        <input
+          type="text"
+          value={form.lrNumber}
+          onChange={(e) => set("lrNumber", e.target.value)}
+          placeholder="e.g. LR-9082"
+          className="form-input font-mono"
+          id="daily-form-lrno"
+        />
+      </Field>
 
-          <Field label="R-Weight (Unloading Wt)" error={errors.rWeight} hint="Received / Unloading weight in Metric Tons (MT)">
-            <div className="relative">
-              <input
-                type="number"
-                step="0.001"
-                min="0"
-                value={form.rWeight}
-                onChange={(e) => set("rWeight", e.target.value)}
-                placeholder="e.g. 40.100"
-                className="form-input font-mono pr-12"
-                id="daily-form-rweight"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-semibold pointer-events-none">
-                MT
-              </span>
-            </div>
-          </Field>
-        </FormGrid>
-      </div>
+      <Field label="Party (Billing Customer)">
+        <select
+          value={form.partyId}
+          onChange={(e) => {
+            const selId = e.target.value;
+            set("partyId", selId);
+            if (selId) {
+              const p = parties.find((item) => item.id === selId);
+              if (p) set("partyNameRaw", p.name);
+            }
+          }}
+          className="form-input font-medium"
+          id="daily-form-party-select"
+        >
+          <option value="">-- Select Billing Customer --</option>
+          {parties.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </Field>
 
-      {/* 3. FINANCIAL / DAILY BOOK */}
-      <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-900/30">
-        <div className="flex items-center gap-2 mb-3">
-          <DollarSign size={16} className="text-emerald-500" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-            Financial / Daily Book Expenses
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Field label="Driver Rate (₹)" error={errors.rate} hint="Operational freight rate">
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.rate}
-              onChange={(e) => set("rate", e.target.value)}
-              placeholder="e.g. 1200"
-              className="form-input font-mono"
-              id="daily-form-rate"
-            />
-          </Field>
-          <Field label="Advance (₹)" error={errors.advance} hint="Advance paid to driver">
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.advance}
-              onChange={(e) => set("advance", e.target.value)}
-              placeholder="e.g. 5000"
-              className="form-input font-mono"
-              id="daily-form-advance"
-            />
-          </Field>
-          <Field label="Cash (₹)" error={errors.cash}>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.cash}
-              onChange={(e) => set("cash", e.target.value)}
-              placeholder="e.g. 1000"
-              className="form-input font-mono"
-              id="daily-form-cash"
-            />
-          </Field>
-        </div>
+      <Field label="Party Name (Raw Text)" hint="Or type custom customer name">
+        <input
+          type="text"
+          value={form.partyNameRaw}
+          onChange={(e) => set("partyNameRaw", e.target.value)}
+          placeholder="e.g. Fairway Dream"
+          className="form-input"
+          id="daily-form-party-raw"
+        />
+      </Field>
 
-        <div className="mt-3">
-          <FormGrid cols={2}>
-            <Field label="Diesel (₹)" error={errors.diesel}>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.diesel}
-                onChange={(e) => set("diesel", e.target.value)}
-                placeholder="e.g. 3000"
-                className="form-input font-mono"
-                id="daily-form-diesel"
-              />
-            </Field>
-            <Field label="A/c (₹)" error={errors.ac} hint="Account adjustment amount">
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.ac}
-                onChange={(e) => set("ac", e.target.value)}
-                placeholder="e.g. 500"
-                className="form-input font-mono"
-                id="daily-form-ac"
-              />
-            </Field>
-          </FormGrid>
-        </div>
-      </div>
+      <Field label="Company (Loading Site)">
+        <select
+          value={form.companyId}
+          onChange={(e) => {
+            const selId = e.target.value;
+            set("companyId", selId);
+            if (selId) {
+              const c = companies.find((item) => item.id === selId);
+              if (c) set("companyNameRaw", c.name);
+            }
+          }}
+          className="form-input font-medium"
+          id="daily-form-company-select"
+        >
+          <option value="">-- Select Loading Company --</option>
+          {companies.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </Field>
 
-      {/* 4. PARTY / COMPANY */}
-      <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-900/30">
-        <div className="flex items-center gap-2 mb-3">
-          <Users size={16} className="text-purple-500" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-            Party & Company (Strictly Separate Entities)
-          </h3>
-        </div>
+      <Field label="Company Name (Raw Text)" hint="Or type site company">
+        <input
+          type="text"
+          value={form.companyNameRaw}
+          onChange={(e) => set("companyNameRaw", e.target.value)}
+          placeholder="e.g. Parle Industries"
+          className="form-input"
+          id="daily-form-company-raw"
+        />
+      </Field>
 
-        <FormGrid cols={2}>
-          <Field
-            label="Party Name (Billing Customer)"
-            hint="The actual customer who gets billed and pays"
-          >
-            <div className="space-y-1.5">
-              <select
-                value={form.partyId}
-                onChange={(e) => {
-                  const selId = e.target.value;
-                  set("partyId", selId);
-                  if (selId) {
-                    const p = parties.find((item) => item.id === selId);
-                    if (p) set("partyNameRaw", p.name);
-                  }
-                }}
-                className="form-input font-medium"
-                id="daily-form-party-select"
-              >
-                <option value="">-- Select Billing Customer --</option>
-                {parties.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={form.partyNameRaw}
-                onChange={(e) => set("partyNameRaw", e.target.value)}
-                placeholder="Or enter party name text..."
-                className="form-input text-xs"
-                id="daily-form-party-raw"
-              />
-            </div>
-          </Field>
+      <Field label="From Location">
+        <select
+          value={form.fromLocationId}
+          onChange={(e) => {
+            const selId = e.target.value;
+            set("fromLocationId", selId);
+            if (selId) {
+              const loc = locations.find((l) => l.id === selId);
+              if (loc) set("fromLocationRaw", loc.name);
+            }
+          }}
+          className="form-input"
+          id="daily-form-from-select"
+        >
+          <option value="">-- Select From Location --</option>
+          {locations.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </Field>
 
-          <Field
-            label="Company Name (Loading Site)"
-            hint="Dispatch / loading site location record"
-          >
-            <div className="space-y-1.5">
-              <select
-                value={form.companyId}
-                onChange={(e) => {
-                  const selId = e.target.value;
-                  set("companyId", selId);
-                  if (selId) {
-                    const c = companies.find((item) => item.id === selId);
-                    if (c) set("companyNameRaw", c.name);
-                  }
-                }}
-                className="form-input font-medium"
-                id="daily-form-company-select"
-              >
-                <option value="">-- Select Loading Company --</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={form.companyNameRaw}
-                onChange={(e) => set("companyNameRaw", e.target.value)}
-                placeholder="Or enter company name text..."
-                className="form-input text-xs"
-                id="daily-form-company-raw"
-              />
-            </div>
-          </Field>
-        </FormGrid>
+      <Field label="From Raw Text">
+        <input
+          type="text"
+          value={form.fromLocationRaw}
+          onChange={(e) => set("fromLocationRaw", e.target.value)}
+          placeholder="e.g. Mumbai Port"
+          className="form-input text-xs"
+          id="daily-form-from-raw"
+        />
+      </Field>
 
-        <div className="mt-3">
-          <FormGrid cols={1}>
-            <Field label="Customer Rate / Final Rate (₹)" error={errors.customerRate} hint="Rate used when calculating freight on customer bill">
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.customerRate}
-                onChange={(e) => set("customerRate", e.target.value)}
-                placeholder="e.g. 1500"
-                className="form-input font-mono font-semibold"
-                id="daily-form-customer-rate"
-              />
-            </Field>
-          </FormGrid>
-        </div>
-      </div>
+      <Field label="To Location">
+        <select
+          value={form.toLocationId}
+          onChange={(e) => {
+            const selId = e.target.value;
+            set("toLocationId", selId);
+            if (selId) {
+              const loc = locations.find((l) => l.id === selId);
+              if (loc) set("toLocationRaw", loc.name);
+            }
+          }}
+          className="form-input"
+          id="daily-form-to-select"
+        >
+          <option value="">-- Select To Location --</option>
+          {locations.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </Field>
 
-      {/* 5. POCH STATUS & REMARKS */}
-      <div className="border border-gray-100 dark:border-gray-800 rounded-xl p-4 bg-gray-50/50 dark:bg-gray-900/30">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 block mb-1">
-              POCH Status (Received / Pending)
-            </label>
-            <p className="text-xs text-gray-500">
-              Only trips marked as <span className="font-semibold text-emerald-600 dark:text-emerald-400">RECEIVED</span> will be eligible for customer billing.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => set("isReceived", !form.isReceived)}
-            id="daily-form-status-toggle"
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${
-              form.isReceived
-                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 shadow-sm"
-                : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700 shadow-sm"
-            }`}
-          >
-            {form.isReceived ? (
-              <>
-                <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
-                <span>RECEIVED</span>
-              </>
-            ) : (
-              <>
-                <Clock size={16} className="text-amber-600 dark:text-amber-400" />
-                <span>PENDING</span>
-              </>
-            )}
-          </button>
-        </div>
+      <Field label="To Raw Text">
+        <input
+          type="text"
+          value={form.toLocationRaw}
+          onChange={(e) => set("toLocationRaw", e.target.value)}
+          placeholder="e.g. Pune Factory"
+          className="form-input text-xs"
+          id="daily-form-to-raw"
+        />
+      </Field>
 
-        <div className="mt-4">
-          <Field label="Remarks / Notes" error={errors.remarks}>
-            <textarea
-              value={form.remarks}
-              onChange={(e) => set("remarks", e.target.value)}
-              placeholder="Operational remarks, driver info, loading details..."
-              className="form-input min-h-[64px] resize-y"
-              rows={2}
-              id="daily-form-remarks"
-            />
-          </Field>
-        </div>
-      </div>
+      <Field label="N-Weight (T)" hint="Loaded / challan weight in MT" error={errors.nWeight}>
+        <input
+          type="number"
+          step="0.001"
+          min="0"
+          value={form.nWeight}
+          onChange={(e) => set("nWeight", e.target.value)}
+          placeholder="40.000"
+          className="form-input font-mono font-medium"
+          id="daily-form-nweight"
+        />
+      </Field>
+
+      <Field label="R-Weight (T)" hint="Unloading received weight in MT" error={errors.rWeight}>
+        <input
+          type="number"
+          step="0.001"
+          min="0"
+          value={form.rWeight}
+          onChange={(e) => set("rWeight", e.target.value)}
+          placeholder="39.500"
+          className="form-input font-mono font-medium"
+          id="daily-form-rweight"
+        />
+      </Field>
+
+      <Field label="Customer / Final Rate (₹)" error={errors.customerRate}>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={form.customerRate}
+          onChange={(e) => set("customerRate", e.target.value)}
+          placeholder="e.g. 520"
+          className="form-input font-mono"
+          id="daily-form-custrate"
+        />
+      </Field>
+
+      <Field label="Driver Rate (₹)" error={errors.rate}>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          value={form.rate}
+          onChange={(e) => set("rate", e.target.value)}
+          placeholder="e.g. 450"
+          className="form-input font-mono"
+          id="daily-form-rate"
+        />
+      </Field>
+
+      <Field label="Advance (₹)" error={errors.advance}>
+        <input
+          type="number"
+          step="1"
+          min="0"
+          value={form.advance}
+          onChange={(e) => set("advance", e.target.value)}
+          placeholder="0"
+          className="form-input font-mono"
+          id="daily-form-advance"
+        />
+      </Field>
+
+      <Field label="Cash (₹)">
+        <input
+          type="number"
+          step="1"
+          min="0"
+          value={form.cash}
+          onChange={(e) => set("cash", e.target.value)}
+          placeholder="0"
+          className="form-input font-mono"
+          id="daily-form-cash"
+        />
+      </Field>
+
+      <Field label="Diesel (₹)">
+        <input
+          type="number"
+          step="1"
+          min="0"
+          value={form.diesel}
+          onChange={(e) => set("diesel", e.target.value)}
+          placeholder="0"
+          className="form-input font-mono"
+          id="daily-form-diesel"
+        />
+      </Field>
+
+      <Field label="A/c (₹)">
+        <input
+          type="number"
+          step="1"
+          min="0"
+          value={form.ac}
+          onChange={(e) => set("ac", e.target.value)}
+          placeholder="0"
+          className="form-input font-mono"
+          id="daily-form-ac"
+        />
+      </Field>
+
+      <Field label="POCH Status" hint="Received = Billable · Pending = Unbillable">
+        <select
+          value={form.isReceived ? "RECEIVED" : "PENDING"}
+          onChange={(e) => set("isReceived", e.target.value === "RECEIVED")}
+          className="form-input font-semibold"
+          id="daily-form-status"
+        >
+          <option value="PENDING">Pending — Unbillable</option>
+          <option value="RECEIVED">Received — Billable</option>
+        </select>
+      </Field>
+
+      <Field label="Remarks">
+        <input
+          type="text"
+          value={form.remarks}
+          onChange={(e) => set("remarks", e.target.value)}
+          placeholder="Optional note"
+          className="form-input"
+          id="daily-form-remarks"
+        />
+      </Field>
 
       {error && (
-        <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
-          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        <div className="md:col-span-3 xl:col-span-4 rounded-lg bg-red-50 border border-red-200 p-3">
+          <p className="text-xs text-red-600 font-semibold">{error}</p>
         </div>
       )}
 
-      <FormActions onCancel={onCancel} loading={loading} submitLabel={submitLabel} />
+      <div className="flex items-center gap-3 pt-2 md:col-span-3 xl:col-span-4">
+        <Button type="submit" variant="coral" disabled={loading}>
+          {loading ? "Saving..." : submitLabel}
+        </Button>
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={loading}>
+          Cancel
+        </Button>
+      </div>
     </form>
   );
 }
 
-// ─── View Entry Details Modal ─────────────────────────────────
-function DailyEntryViewModal({
+// ─── Trip Detail Modal (Matches Lovable TripDetail) ───────────
+function TripDetailModal({
   entry,
   onClose,
 }: {
@@ -732,610 +657,319 @@ function DailyEntryViewModal({
   const fromText = entry.fromLocationName || entry.fromLocationRaw || "—";
   const toText = entry.toLocationName || entry.toLocationRaw || "—";
 
-  // Determine lock state for this entry
-  const isPostedBilled = entry.isBilled === true && entry.billStatus === "POSTED";
+  const nWt = entry.nWeight !== null && entry.nWeight !== undefined ? Number(entry.nWeight) : 0;
+  const rWt = entry.rWeight !== null && entry.rWeight !== undefined ? Number(entry.rWeight) : 0;
+  const shortage = Math.max(0, nWt - rWt);
 
   return (
-    <div className="space-y-4">
-      {/* Posted-Bill Lock Notice */}
-      {isPostedBilled && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700">
-          <Lock size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-amber-800 dark:text-amber-200">
-              Billed in Bill #{entry.billNumber} — Editing Locked
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-              This trip is included in a POSTED bill. Use{" "}
-              <Link href="/billing/bills" className="underline font-semibold hover:text-amber-900">
-                Bill Edit
-              </Link>{" "}
-              to make corrections.
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1A1D20]/60 p-4 animate-fade-in my-auto">
+      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#D8D5CE] bg-white p-6 shadow-xl space-y-5">
+        <div className="flex items-start justify-between gap-4 border-b border-[#EFECE6] pb-4">
+          <div>
+            <div className="text-[11px] font-bold tracking-widest text-coral uppercase">
+              Trip Detail — Sr No #{entry.srNo}
+            </div>
+            <h3 className="font-display text-2xl font-bold text-[#1A1D20] mt-0.5">
+              {truckText} · {entry.lrNumber ? `LR #${entry.lrNumber}` : "No LR"}
+            </h3>
+            <p className="text-xs text-[#5F6368] mt-0.5">
+              {formatDate(entry.entryDate)} · {fromText} → {toText}
             </p>
           </div>
-        </div>
-      )}
-
-      {/* Top Banner */}
-      <div className="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700">
-        <div>
-          <span className="text-xs text-gray-400 font-medium">Sr No #{entry.srNo}</span>
-          <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
-            {truckText}
-          </h3>
-          <span className="text-xs text-gray-500">{formatDate(entry.entryDate)}</span>
-        </div>
-        <Badge variant={entry.isReceived ? "success" : "warning"}>
-          {entry.isReceived ? "RECEIVED (Billable)" : "PENDING (Operational)"}
-        </Badge>
-      </div>
-
-      {/* Details Grid */}
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="card p-3 space-y-1.5">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Route & Logistics
-          </span>
-          <div>
-            <span className="text-xs text-gray-500 block">From → To</span>
-            <span className="font-medium">{fromText} → {toText}</span>
-          </div>
-          <div>
-            <span className="text-xs text-gray-500 block">LR Number</span>
-            <span className="font-mono text-xs">{entry.lrNumber || "—"}</span>
-          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 text-[#7A7F85] hover:bg-[#FAF8F5] transition-colors"
+            aria-label="Close modal"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <div className="card p-3 space-y-1.5">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Party vs Company
-          </span>
-          <div>
-            <span className="text-xs text-gray-500 block">Billing Party</span>
-            <span className="font-semibold text-primary-600 dark:text-primary-400">{partyText}</span>
+        {/* Lock Banner if Billed */}
+        {entry.isBilled && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-center justify-between text-xs text-amber-800">
+            <span className="font-semibold flex items-center gap-1.5">
+              <Lock size={14} className="text-amber-600" />
+              Billed in Bill #{entry.billNumber ?? entry.billId} — Editing Locked
+            </span>
+            <Badge variant="warning">BILLED</Badge>
           </div>
-          <div>
-            <span className="text-xs text-gray-500 block">Loading Company</span>
-            <span className="font-medium text-gray-700 dark:text-gray-300">{companyText}</span>
-          </div>
-        </div>
+        )}
 
-        <div className="card p-3 space-y-1.5">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Weights (Metric Tons)
-          </span>
-          <div className="flex justify-between">
-            <span className="text-gray-500 text-xs">N-Weight:</span>
-            <span className="font-mono font-medium">{formatTons(entry.nWeight)}</span>
+        {/* Details Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1">
+            <span className="text-[10px] font-bold text-[#7A7F85] uppercase tracking-wider block">Billing Customer</span>
+            <span className="font-bold text-[#E05638] text-sm block">{partyText}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500 text-xs">R-Weight:</span>
-            <span className="font-mono font-medium">{formatTons(entry.rWeight)}</span>
+
+          <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1">
+            <span className="text-[10px] font-bold text-[#7A7F85] uppercase tracking-wider block">Loading Site Company</span>
+            <span className="font-semibold text-[#1A1D20] text-sm block">{companyText}</span>
+          </div>
+
+          <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1">
+            <span className="text-[10px] font-bold text-[#7A7F85] uppercase tracking-wider block">N-Weight (Loaded)</span>
+            <span className="font-mono font-bold text-[#1A1D20] text-sm block">{formatTons(entry.nWeight)}</span>
+          </div>
+
+          <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1">
+            <span className="text-[10px] font-bold text-[#7A7F85] uppercase tracking-wider block">R-Weight (Unloaded)</span>
+            <span className="font-mono font-bold text-[#1A1D20] text-sm block">{formatTons(entry.rWeight)}</span>
+          </div>
+
+          <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1">
+            <span className="text-[10px] font-bold text-[#7A7F85] uppercase tracking-wider block">Shortage (N − R)</span>
+            <span className="font-mono font-bold text-red-600 text-sm block">{formatTons(shortage)}</span>
+          </div>
+
+          <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 space-y-1">
+            <span className="text-[10px] font-bold text-[#7A7F85] uppercase tracking-wider block">Customer Rate</span>
+            <span className="font-mono font-bold text-emerald-700 text-sm block">{formatCurrency(entry.customerRate ?? 0)}</span>
           </div>
         </div>
 
-        <div className="card p-3 space-y-1.5">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Financial & Rates
-          </span>
-          <div className="flex justify-between">
-            <span className="text-gray-500 text-xs">Driver Rate:</span>
-            <span className="font-mono">{formatMoney(entry.rate)}</span>
+        {/* Operational Driver Voucher Box */}
+        <div className="rounded-xl bg-[#1A1D20] p-4 text-white space-y-2">
+          <div className="text-[10px] font-bold tracking-widest text-[#7A7F85] uppercase">
+            Driver Voucher (Operational Expenses)
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500 text-xs">Customer Rate:</span>
-            <span className="font-mono font-semibold text-emerald-600">{formatMoney(entry.customerRate)}</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+            <div>Advance: <span className="font-bold">{formatCurrency(entry.advance ?? 0)}</span></div>
+            <div>Cash: <span className="font-bold">{formatCurrency(entry.cash ?? 0)}</span></div>
+            <div>Diesel: <span className="font-bold">{formatCurrency(entry.diesel ?? 0)}</span></div>
+            <div>A/c: <span className="font-bold">{formatCurrency(entry.ac ?? 0)}</span></div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-500 text-xs">Advance Paid:</span>
-            <span className="font-mono">{formatMoney(entry.advance)}</span>
-          </div>
+          <p className="text-[11px] text-gray-400">Status: Synchronized 1-to-1 with Driver Voucher ledger.</p>
         </div>
-      </div>
 
-      {/* Driver Voucher notice */}
-      <div className="rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 p-3">
-        <p className="text-xs text-indigo-700 dark:text-indigo-300">
-          <strong>Driver Voucher Status:</strong> Synchronized (<code>PENDING_CONFIRMATION</code>). No automatic ledger postings created yet.
-        </p>
-      </div>
+        {entry.remarks && (
+          <div className="rounded-xl border border-[#D8D5CE] bg-[#FAF8F5] p-3 text-xs text-[#5F6368]">
+            <strong className="text-[#1A1D20]">Remarks:</strong> {entry.remarks}
+          </div>
+        )}
 
-      {entry.remarks && (
-        <div className="p-3 bg-gray-50 dark:bg-gray-800/40 rounded-lg text-xs text-gray-600 dark:text-gray-300">
-          <strong>Remarks:</strong> {entry.remarks}
+        <div className="flex justify-end pt-2">
+          <Button variant="ink" onClick={onClose}>
+            Close
+          </Button>
         </div>
-      )}
-
-      <div className="flex justify-end pt-2">
-        <Button variant="secondary" size="sm" onClick={onClose}>
-          Close
-        </Button>
       </div>
     </div>
   );
 }
 
-// ─── Main Daily Book Page ──────────────────────────────────────
+// ─── Main Daily Book Page Component ───────────────────────────
 export default function DailyBookPage() {
   const { currentFirm, loading: firmLoading } = useFirm();
+  const api = useApiClient();
 
-  // Load entries and master lists
-  const {
-    data: entries,
-    loading,
-    error,
-    refresh,
-  } = useMasterList<DailyEntryRecord>({
+  const { data: entries, loading, error, refresh } = useMasterList<DailyEntryRecord>({
     endpoint: "/api/daily-entries",
   });
   const { submitting, submitError, create, update } = useMasterMutation("/api/daily-entries");
 
+  // Master lists
   const { data: parties } = useMasterList<MasterParty>({ endpoint: "/api/parties" });
   const { data: companies } = useMasterList<MasterCompany>({ endpoint: "/api/companies" });
   const { data: trucks } = useMasterList<MasterTruck>({ endpoint: "/api/trucks" });
   const { data: locations } = useMasterList<MasterLocation>({ endpoint: "/api/locations" });
 
-  // UI State
-  const [search, setSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [partyFilter, setPartyFilter] = useState("ALL");
-  const [companyFilter, setCompanyFilter] = useState("ALL");
-  const [truckFilter, setTruckFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "RECEIVED" | "PENDING">("ALL");
+  // State
+  const [showForm, setShowForm] = useState(false);
+  const [q, setQ] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [partyId, setPartyId] = useState("");
+  const [companyId, setCompanyId] = useState("");
+  const [truckId, setTruckId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
-  const [modal, setModal] = useState<
-    | { mode: "create" }
-    | { mode: "edit"; entry: DailyEntryRecord }
-    | { mode: "view"; entry: DailyEntryRecord }
-    | null
-  >(null);
-
+  const [suggestedSrNo, setSuggestedSrNo] = useState(1);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [detailEntry, setDetailEntry] = useState<DailyEntryRecord | null>(null);
+  const [editEntry, setEditEntry] = useState<DailyEntryRecord | null>(null);
 
-  // Compute maximum Sr No for new entry auto-suggestion
-  const suggestedSrNo = useMemo(() => {
-    if (!entries || entries.length === 0) return 1;
-    const maxSr = Math.max(...entries.map((e) => Number(e.srNo) || 0));
-    return maxSr + 1;
-  }, [entries]);
-
-  // Overall Statistics for Summary Cards
-  const stats = useMemo(() => {
-    const total = entries.length;
-    const received = entries.filter((e) => e.isReceived).length;
-    const pending = total - received;
-
-    let totalNWeight = 0;
-    let totalRWeight = 0;
-    entries.forEach((e) => {
-      totalNWeight += Number(e.nWeight) || 0;
-      totalRWeight += Number(e.rWeight) || 0;
-    });
-
-    return { total, received, pending, totalNWeight, totalRWeight };
-  }, [entries]);
-
-  // Client-side Filtered Entries
-  const filtered = useMemo(() => {
-    return entries.filter((e) => {
-      // 1. Search Query
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const truckMatch = (e.truckNumber || e.truckNumberRaw || "").toLowerCase().includes(q);
-        const partyMatch = (e.partyName || e.partyNameRaw || "").toLowerCase().includes(q);
-        const companyMatch = (e.companyName || e.companyNameRaw || "").toLowerCase().includes(q);
-        const lrMatch = (e.lrNumber || "").toLowerCase().includes(q);
-        const fromMatch = (e.fromLocationName || e.fromLocationRaw || "").toLowerCase().includes(q);
-        const toMatch = (e.toLocationName || e.toLocationRaw || "").toLowerCase().includes(q);
-        const srMatch = String(e.srNo).includes(q);
-        if (!truckMatch && !partyMatch && !companyMatch && !lrMatch && !fromMatch && !toMatch && !srMatch) {
-          return false;
-        }
+  // Fetch Next Sr No
+  const fetchNextSrNo = useCallback(async () => {
+    if (!currentFirm) return;
+    try {
+      const res = await api.get<{ nextSrNo: number }>("/api/daily-entries/next-sr-no");
+      if (res && res.nextSrNo) {
+        setSuggestedSrNo(res.nextSrNo);
       }
+    } catch (err) {
+      console.error("Failed to fetch next Sr No", err);
+    }
+  }, [currentFirm, api]);
 
-      // 2. Status Filter
-      if (statusFilter === "RECEIVED" && !e.isReceived) return false;
-      if (statusFilter === "PENDING" && e.isReceived) return false;
+  useEffect(() => {
+    fetchNextSrNo();
+  }, [fetchNextSrNo]);
 
-      // 3. Date Range
-      if (dateFrom && e.entryDate < dateFrom) return false;
-      if (dateTo && e.entryDate > dateTo) return false;
+  // Filtered entries list
+  const filteredRows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return entries
+      .filter((e) => (partyId ? e.partyId === partyId : true))
+      .filter((e) => (companyId ? e.companyId === companyId : true))
+      .filter((e) => (truckId ? e.truckId === truckId : true))
+      .filter((e) => {
+        if (!statusFilter) return true;
+        if (statusFilter === "RECEIVED") return e.isReceived;
+        if (statusFilter === "PENDING") return !e.isReceived;
+        return true;
+      })
+      .filter((e) => (fromDate ? e.entryDate >= fromDate : true))
+      .filter((e) => (toDate ? e.entryDate <= toDate : true))
+      .filter((e) => {
+        if (!needle) return true;
+        const haystack = [
+          e.srNo,
+          e.lrNumber,
+          e.truckNumber,
+          e.truckNumberRaw,
+          e.partyName,
+          e.partyNameRaw,
+          e.companyName,
+          e.companyNameRaw,
+          e.fromLocationName,
+          e.fromLocationRaw,
+          e.toLocationName,
+          e.toLocationRaw,
+          e.remarks,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(needle);
+      })
+      .sort((a, b) => b.srNo - a.srNo);
+  }, [entries, q, fromDate, toDate, partyId, companyId, truckId, statusFilter]);
 
-      // 4. Party Filter
-      if (partyFilter !== "ALL" && e.partyId !== partyFilter) return false;
-
-      // 5. Company Filter
-      if (companyFilter !== "ALL" && e.companyId !== companyFilter) return false;
-
-      // 6. Truck Filter
-      if (truckFilter !== "ALL" && e.truckId !== truckFilter) return false;
-
-      return true;
-    });
-  }, [entries, search, statusFilter, dateFrom, dateTo, partyFilter, companyFilter, truckFilter]);
-
-  const hasActiveFilters =
-    Boolean(search) ||
-    Boolean(dateFrom) ||
-    Boolean(dateTo) ||
-    partyFilter !== "ALL" ||
-    companyFilter !== "ALL" ||
-    truckFilter !== "ALL" ||
-    statusFilter !== "ALL";
-
-  function clearFilters() {
-    setSearch("");
-    setDateFrom("");
-    setDateTo("");
-    setPartyFilter("ALL");
-    setCompanyFilter("ALL");
-    setTruckFilter("ALL");
-    setStatusFilter("ALL");
+  // Status Badge Toggle Handler
+  async function handleStatusToggle(entry: DailyEntryRecord) {
+    if (entry.isBilled) return; // Prevent toggle if billed
+    try {
+      const newStatus = !entry.isReceived;
+      const ok = await update(entry.id, { isReceived: newStatus });
+      if (ok) {
+        setFeedback(`Entry #${entry.srNo} status updated to ${newStatus ? "RECEIVED (Billable)" : "PENDING (Unbillable)"}`);
+        refresh();
+      }
+    } catch (err: any) {
+      console.error("Failed to update status", err);
+    }
   }
 
-  async function handleCreate(payload: Record<string, any>) {
+  // Create Submit
+  async function handleCreateSubmit(payload: Record<string, any>) {
     const ok = await create(payload);
     if (ok) {
-      setModal(null);
-      setFeedback("Daily Entry created successfully!");
-      setTimeout(() => setFeedback(null), 4000);
+      setShowForm(false);
+      setFeedback(`Daily trip entry #${payload.srNo} recorded successfully.`);
+      fetchNextSrNo();
       refresh();
     }
   }
 
-  async function handleUpdate(id: string, payload: Record<string, any>) {
+  // Edit Submit
+  async function handleEditSubmit(id: string, payload: Record<string, any>) {
     const ok = await update(id, payload);
     if (ok) {
-      setModal(null);
-      setFeedback("Daily Entry updated successfully!");
-      setTimeout(() => setFeedback(null), 4000);
+      setEditEntry(null);
+      setFeedback(`Daily trip entry #${payload.srNo} updated successfully.`);
       refresh();
     }
   }
 
-  const columns: Column<DailyEntryRecord>[] = [
-    {
-      key: "srNo",
-      label: "Sr No",
-      render: (e) => <span className="font-mono text-xs font-semibold text-gray-500">#{e.srNo}</span>,
-    },
-    {
-      key: "entryDate",
-      label: "Date",
-      render: (e) => <span className="text-xs whitespace-nowrap">{formatDate(e.entryDate)}</span>,
-    },
-    {
-      key: "truckNumber",
-      label: "Truck No",
-      render: (e) => (
-        <div>
-          <span className="font-mono font-semibold text-sm text-gray-900 dark:text-gray-100">
-            {e.truckNumber || e.truckNumberRaw || "—"}
-          </span>
-          {e.lrNumber && (
-            <div className="text-[11px] font-mono text-gray-400">LR: {e.lrNumber}</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "route",
-      label: "From → To",
-      render: (e) => {
-        const from = e.fromLocationName || e.fromLocationRaw || "—";
-        const to = e.toLocationName || e.toLocationRaw || "—";
-        return (
-          <span className="text-xs text-gray-600 dark:text-gray-300">
-            {from} → {to}
-          </span>
-        );
-      },
-    },
-    {
-      key: "weights",
-      label: "N-Wt / R-Wt",
-      align: "right",
-      render: (e) => (
-        <div className="text-right">
-          <div className="font-mono text-xs text-gray-800 dark:text-gray-200">
-            N: {formatTons(e.nWeight)}
-          </div>
-          <div className="font-mono text-[11px] text-gray-500">
-            R: {formatTons(e.rWeight)}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "partyName",
-      label: "Party (Billing)",
-      render: (e) => {
-        const partyName = e.partyName || e.partyNameRaw;
-        return partyName ? (
-          <span className="font-medium text-xs text-primary-600 dark:text-primary-400">
-            {partyName}
-          </span>
-        ) : (
-          <span className="text-gray-400 text-xs">—</span>
-        );
-      },
-    },
-    {
-      key: "companyName",
-      label: "Company (Site)",
-      render: (e) => {
-        const companyName = e.companyName || e.companyNameRaw;
-        return companyName ? (
-          <span className="text-xs text-gray-600 dark:text-gray-300">{companyName}</span>
-        ) : (
-          <span className="text-gray-400 text-xs">—</span>
-        );
-      },
-    },
-    {
-      key: "rates",
-      label: "Cust Rate",
-      align: "right",
-      render: (e) =>
-        e.customerRate ? (
-          <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(e.customerRate)}
-          </span>
-        ) : (
-          <span className="text-gray-400 text-xs">—</span>
-        ),
-    },
-    {
-      key: "isReceived",
-      label: "POCH Status",
-      render: (e) => (
-        <Badge variant={e.isReceived ? "success" : "warning"}>
-          {e.isReceived ? "RECEIVED" : "PENDING"}
-        </Badge>
-      ),
-    },
-    {
-      key: "actions",
-      label: "",
-      render: (e) => {
-        // A trip included in a POSTED bill is fully locked.
-        // Show a lock indicator + link to Bills page instead of the Edit button.
-        const isPostedBilled = e.isBilled === true && e.billStatus === "POSTED";
-
-        return (
-          <div className="flex items-center justify-end gap-1">
-            <button
-              className="btn btn-ghost btn-xs text-gray-500 hover:text-gray-800"
-              onClick={(ev) => {
-                ev.stopPropagation();
-                setModal({ mode: "view", entry: e });
-              }}
-              title="View details"
-              id={`daily-view-${e.id}`}
-            >
-              <Eye size={13} />
-            </button>
-
-            {isPostedBilled ? (
-              // ── POSTED-BILL LOCK INDICATOR ──────────────────────────────
-              // The edit button is replaced with a lock icon and a link
-              // to the Bills page where Bill Edit can be initiated.
-              <Link
-                href="/billing/bills"
-                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold
-                           bg-amber-50 dark:bg-amber-950/40
-                           text-amber-700 dark:text-amber-300
-                           border border-amber-300 dark:border-amber-700
-                           hover:bg-amber-100 dark:hover:bg-amber-900/40
-                           transition-colors"
-                title={`Billed in Bill #${e.billNumber} — Use Bill Edit to make corrections`}
-                id={`daily-locked-${e.id}`}
-                onClick={(ev) => ev.stopPropagation()}
-              >
-                <Lock size={11} />
-                <span>Bill #{e.billNumber}</span>
-              </Link>
-            ) : (
-              // ── NORMAL EDIT BUTTON (unbilled or DRAFT-billed trips) ────
-              <button
-                className="btn btn-ghost btn-xs text-primary-600 hover:text-primary-800"
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  setModal({ mode: "edit", entry: e });
-                }}
-                title="Edit entry"
-                id={`daily-edit-${e.id}`}
-              >
-                <Pencil size={13} />
-              </button>
-            )}
-          </div>
-        );
-      },
-    },
-  ];
-
-  const editRecord = modal?.mode === "edit" ? modal.entry : null;
-  const viewRecord = modal?.mode === "view" ? modal.entry : null;
-
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="space-y-6 animate-fade-in">
+      {/* Page Header matching Lovable header */}
       <PageHeader
-        title="Daily Book"
-        subtitle="Roznamcha — operational trip entries strictly scoped per firm"
-        breadcrumbs={[{ label: "Daily Book" }]}
+        eyebrow="Operations"
+        title={
+          <>
+            Daily Book — <span className="text-coral">Roznamcha</span>
+          </>
+        }
+        description="Manual operational entries. Values you type here are never auto-overwritten."
         actions={
           <Button
-            variant="primary"
-            size="sm"
-            icon={Plus}
-            onClick={() => setModal({ mode: "create" })}
+            variant="coral"
+            onClick={() => setShowForm((v) => !v)}
             id="daily-book-new-entry"
             disabled={firmLoading || !currentFirm}
           >
-            New Entry
+            {showForm ? "Close entry form" : "＋ New trip"}
           </Button>
         }
       />
 
       {/* Success Feedback Banner */}
       {feedback && (
-        <div className="card border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3 flex items-center justify-between">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
-            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              {feedback}
-            </p>
+            <CheckCircle2 size={16} className="text-emerald-600" />
+            <p className="text-xs font-semibold text-emerald-800">{feedback}</p>
           </div>
-          <button onClick={() => setFeedback(null)} className="text-emerald-600 text-xs">
+          <button onClick={() => setFeedback(null)} className="text-emerald-600 hover:text-emerald-900 text-xs">
             <X size={14} />
           </button>
         </div>
       )}
 
-      {/* Error Banner */}
-      {error && (
-        <div className="card border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10 p-3">
-          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-        </div>
+      {/* Expandable New Trip Form Panel */}
+      {showForm && (
+        <Panel className="mb-6" title="New daily entry" subtitle="Fast entry — tab through the fields.">
+          <DailyEntryForm
+            initial={createInitialFormState(suggestedSrNo)}
+            parties={parties}
+            companies={companies}
+            trucks={trucks}
+            locations={locations}
+            onSubmit={handleCreateSubmit}
+            onCancel={() => setShowForm(false)}
+            loading={submitting}
+            error={submitError}
+            submitLabel="Save entry"
+          />
+        </Panel>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        {/* Total Trips */}
-        <button
-          onClick={() => setStatusFilter("ALL")}
-          className={`card p-3.5 flex items-center justify-between text-left transition-all border ${
-            statusFilter === "ALL"
-              ? "ring-2 ring-primary-500 border-primary-300 dark:border-primary-700"
-              : "hover:border-gray-300"
-          }`}
-        >
-          <div>
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-              Total Trips
-            </span>
-            <span className="text-2xl font-black text-gray-900 dark:text-gray-100 font-mono">
-              {stats.total}
-            </span>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600">
-            <BookOpen size={18} />
-          </div>
-        </button>
+      {/* Main Entries Section */}
+      <Panel
+        title="Entries"
+        subtitle={`${filteredRows.length} of ${entries.length} trips shown`}
+      >
+        {/* Filter Toolbar matching Lovable filter grid */}
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 text-xs">
+          <input
+            className="form-input"
+            placeholder="Search LR, route, truck, party…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
 
-        {/* Received Trips */}
-        <button
-          onClick={() => setStatusFilter("RECEIVED")}
-          className={`card p-3.5 flex items-center justify-between text-left transition-all border ${
-            statusFilter === "RECEIVED"
-              ? "ring-2 ring-emerald-500 border-emerald-300 dark:border-emerald-700"
-              : "hover:border-gray-300"
-          }`}
-        >
-          <div>
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
-              Received (Billable)
-            </span>
-            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
-              {stats.received}
-            </span>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600">
-            <CheckCircle2 size={18} />
-          </div>
-        </button>
-
-        {/* Pending Trips */}
-        <button
-          onClick={() => setStatusFilter("PENDING")}
-          className={`card p-3.5 flex items-center justify-between text-left transition-all border ${
-            statusFilter === "PENDING"
-              ? "ring-2 ring-amber-500 border-amber-300 dark:border-amber-700"
-              : "hover:border-gray-300"
-          }`}
-        >
-          <div>
-            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
-              Pending (POCH)
-            </span>
-            <span className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">
-              {stats.pending}
-            </span>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600">
-            <Clock size={18} />
-          </div>
-        </button>
-
-        {/* Total Weights */}
-        <div className="card p-3.5 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-              Total Weight (MT)
-            </span>
-            <span className="text-sm font-bold font-mono text-gray-800 dark:text-gray-200">
-              N: {stats.totalNWeight.toFixed(2)} T
-            </span>
-            <div className="text-xs font-mono text-gray-500">
-              R: {stats.totalRWeight.toFixed(2)} T
-            </div>
-          </div>
-          <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600">
-            <Scale size={18} />
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Toolbar */}
-      <div className="card p-3.5 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Search Bar */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="search"
-              placeholder="Search truck, party, company, LR, route…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="form-input pl-8 text-xs"
-              id="daily-book-search"
-            />
-          </div>
-
-          {/* Date From */}
-          <div className="w-36">
+          <div className="flex gap-2">
             <input
               type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="form-input text-xs"
-              title="From date"
-              id="daily-filter-date-from"
+              className="form-input flex-1"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              title="From Date"
             />
-          </div>
-
-          {/* Date To */}
-          <div className="w-36">
             <input
               type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="form-input text-xs"
-              title="To date"
-              id="daily-filter-date-to"
+              className="form-input flex-1"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              title="To Date"
             />
           </div>
 
-          {/* Party Filter */}
-          <select
-            value={partyFilter}
-            onChange={(e) => setPartyFilter(e.target.value)}
-            className="form-input text-xs w-40"
-            id="daily-filter-party"
-          >
-            <option value="ALL">All Parties</option>
+          <select className="form-input" value={partyId} onChange={(e) => setPartyId(e.target.value)}>
+            <option value="">All parties</option>
             {parties.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -1343,14 +977,8 @@ export default function DailyBookPage() {
             ))}
           </select>
 
-          {/* Company Filter */}
-          <select
-            value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
-            className="form-input text-xs w-40"
-            id="daily-filter-company"
-          >
-            <option value="ALL">All Companies</option>
+          <select className="form-input" value={companyId} onChange={(e) => setCompanyId(e.target.value)}>
+            <option value="">All companies</option>
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -1358,14 +986,8 @@ export default function DailyBookPage() {
             ))}
           </select>
 
-          {/* Truck Filter */}
-          <select
-            value={truckFilter}
-            onChange={(e) => setTruckFilter(e.target.value)}
-            className="form-input text-xs w-36"
-            id="daily-filter-truck"
-          >
-            <option value="ALL">All Trucks</option>
+          <select className="form-input" value={truckId} onChange={(e) => setTruckId(e.target.value)}>
+            <option value="">All trucks</option>
             {trucks.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.truckNumber}
@@ -1373,115 +995,211 @@ export default function DailyBookPage() {
             ))}
           </select>
 
-          {/* Reset Filters */}
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} icon={X}>
-              Clear Filters
-            </Button>
+          <select className="form-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">Received & Pending</option>
+            <option value="RECEIVED">Received — Billable</option>
+            <option value="PENDING">Pending — Unbillable</option>
+          </select>
+
+          {(q || fromDate || toDate || partyId || companyId || truckId || statusFilter) && (
+            <button
+              onClick={() => {
+                setQ("");
+                setFromDate("");
+                setToDate("");
+                setPartyId("");
+                setCompanyId("");
+                setTruckId("");
+                setStatusFilter("");
+              }}
+              className="text-xs text-coral hover:underline flex items-center gap-1 font-semibold"
+            >
+              <RotateCcw size={12} /> Reset Filters
+            </button>
           )}
         </div>
 
-        <div className="flex items-center justify-between text-xs text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-800">
-          <span>
-            {loading ? "Loading entries…" : `Showing ${filtered.length} of ${entries.length} daily entries`}
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Received = Billable</span>
-            <span className="inline-block w-2 h-2 rounded-full bg-amber-500 ml-2" />
-            <span>Pending = Unbillable</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Data Table */}
-      <DataTable
-        columns={columns}
-        data={filtered}
-        loading={loading}
-        emptyState={
+        {loading ? (
+          <div className="py-12 text-center text-xs text-[#7A7F85]">Loading daily entries...</div>
+        ) : filteredRows.length === 0 ? (
           <EmptyState
-            icon={BookOpen}
-            title={hasActiveFilters ? "No daily entries match your filters" : "No daily entries yet"}
-            description={
-              hasActiveFilters
-                ? "Try adjusting or clearing your search and filter criteria."
-                : "Record your first daily operational trip entry to get started."
-            }
+            title="No entries match these filters"
+            description="Clear a filter, or add today's first trip to the Daily Book."
             action={
-              !hasActiveFilters ? (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={Plus}
-                  onClick={() => setModal({ mode: "create" })}
-                >
-                  New Entry
-                </Button>
-              ) : (
-                <Button variant="secondary" size="sm" onClick={clearFilters}>
-                  Clear Filters
-                </Button>
-              )
+              <Button variant="coral" onClick={() => setShowForm(true)}>
+                ＋ New trip
+              </Button>
             }
           />
-        }
-        onRowClick={(e) => setModal({ mode: "view", entry: e })}
-      />
+        ) : (
+          <>
+            {/* Desktop Table matching Lovable TableShell */}
+            <div className="hidden md:block overflow-x-auto">
+              <TableShell>
+                <thead>
+                  <tr className="border-b border-[#D8D5CE] bg-[#FAF8F5] text-[11px] font-bold uppercase tracking-wider text-[#5F6368]">
+                    <Th>Sr</Th>
+                    <Th>Date</Th>
+                    <Th>Truck</Th>
+                    <Th>LR No</Th>
+                    <Th>Route</Th>
+                    <Th align="right">N-Wt</Th>
+                    <Th align="right">R-Wt</Th>
+                    <Th align="right">Shortage</Th>
+                    <Th>Party (Billing)</Th>
+                    <Th>Company (Site)</Th>
+                    <Th align="right">Rate</Th>
+                    <Th align="center">Status</Th>
+                    <Th align="center">Action</Th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EFECE6] text-xs">
+                  {filteredRows.map((e) => {
+                    const truckText = e.truckNumber || e.truckNumberRaw || "—";
+                    const partyText = e.partyName || e.partyNameRaw || "—";
+                    const companyText = e.companyName || e.companyNameRaw || "—";
+                    const fromText = e.fromLocationName || e.fromLocationRaw || "—";
+                    const toText = e.toLocationName || e.toLocationRaw || "—";
 
-      {/* Create Modal */}
-      <Modal
-        open={modal?.mode === "create"}
-        onClose={() => setModal(null)}
-        title={`New Daily Book Entry (Sr No #${suggestedSrNo})`}
-        size="lg"
-      >
-        <DailyEntryForm
-          initial={createInitialFormState(suggestedSrNo)}
-          parties={parties}
-          companies={companies}
-          trucks={trucks}
-          locations={locations}
-          onSubmit={handleCreate}
-          onCancel={() => setModal(null)}
-          loading={submitting}
-          error={submitError}
-          submitLabel="Save Entry"
-        />
-      </Modal>
+                    const nWt = e.nWeight !== null && e.nWeight !== undefined ? Number(e.nWeight) : 0;
+                    const rWt = e.rWeight !== null && e.rWeight !== undefined ? Number(e.rWeight) : 0;
+                    const shortage = Math.max(0, nWt - rWt);
 
-      {/* Edit Modal */}
-      <Modal
-        open={modal?.mode === "edit"}
-        onClose={() => setModal(null)}
-        title={`Edit Daily Entry — Sr No #${editRecord?.srNo ?? ""}`}
-        size="lg"
-      >
-        {editRecord && (
-          <DailyEntryForm
-            initial={recordToFormState(editRecord)}
-            parties={parties}
-            companies={companies}
-            trucks={trucks}
-            locations={locations}
-            onSubmit={(data) => handleUpdate(editRecord.id, data)}
-            onCancel={() => setModal(null)}
-            loading={submitting}
-            error={submitError}
-            submitLabel="Update Entry"
-          />
+                    return (
+                      <tr key={e.id} className="hover:bg-[#FAF8F5] transition-colors">
+                        <Td className="text-[#7A7F85] font-mono">{e.srNo}</Td>
+                        <Td className="font-semibold text-[#1A1D20] whitespace-nowrap">{formatDate(e.entryDate)}</Td>
+                        <Td className="font-bold text-[#1A1D20] font-mono">{truckText}</Td>
+                        <Td className="font-mono text-[#5F6368]">{e.lrNumber || "—"}</Td>
+                        <Td className="text-[#5F6368]">{fromText} → {toText}</Td>
+                        <Td align="right" className="font-mono">{formatTons(e.nWeight)}</Td>
+                        <Td align="right" className="font-mono">{formatTons(e.rWeight)}</Td>
+                        <Td align="right" className="font-mono text-red-600">{shortage > 0 ? formatTons(shortage) : "—"}</Td>
+                        <Td className="font-bold text-[#E05638]">{partyText}</Td>
+                        <Td className="text-[#5F6368]">{companyText}</Td>
+                        <Td align="right" className="font-mono font-bold text-emerald-700">{formatCurrency(e.customerRate ?? 0)}</Td>
+                        <Td align="center">
+                          <button
+                            type="button"
+                            onClick={() => handleStatusToggle(e)}
+                            disabled={Boolean(e.isBilled)}
+                            className="cursor-pointer hover:opacity-85 disabled:opacity-60 disabled:cursor-not-allowed"
+                            title={e.isBilled ? "Status locked (Billed)" : "Click to toggle Received/Pending status"}
+                          >
+                            <StatusBadge status={e.isReceived ? "RECEIVED" : "PENDING"} />
+                          </button>
+                        </Td>
+                        <Td align="center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => setDetailEntry(e)}
+                              className="rounded-full border border-[#D8D5CE] px-3 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#1A1D20] hover:text-white transition-colors"
+                            >
+                              View
+                            </button>
+                            {e.isBilled ? (
+                              <span className="p-1 text-amber-600" title={`Billed in Bill #${e.billNumber ?? ""}`}>
+                                <Lock size={14} />
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => setEditEntry(e)}
+                                className="rounded-full p-1 text-[#5F6368] hover:bg-[#FAF8F5] transition-colors"
+                                title="Edit entry"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </TableShell>
+              <p className="mt-3 text-xs text-[#7A7F85]">
+                Tip: click a status badge to toggle between Received (Billable) and Pending (Unbillable).
+              </p>
+            </div>
+
+            {/* Mobile Cards Stack matching Lovable mobile layout */}
+            <div className="grid gap-3 md:hidden">
+              {filteredRows.map((e) => {
+                const truckText = e.truckNumber || e.truckNumberRaw || "—";
+                const partyText = e.partyName || e.partyNameRaw || "—";
+                const companyText = e.companyName || e.companyNameRaw || "—";
+                const fromText = e.fromLocationName || e.fromLocationRaw || "—";
+                const toText = e.toLocationName || e.toLocationRaw || "—";
+
+                return (
+                  <button
+                    key={e.id}
+                    onClick={() => setDetailEntry(e)}
+                    className="rounded-2xl border border-[#D8D5CE] bg-white p-4 text-left shadow-xs hover:border-[#9E9A91] transition-all"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-base font-bold text-[#1A1D20]">{truckText}</span>
+                      <StatusBadge status={e.isReceived ? "RECEIVED" : "PENDING"} />
+                    </div>
+                    <div className="mt-1.5 text-xs text-[#5F6368]">
+                      {formatDate(e.entryDate)} · {e.lrNumber ? `LR #${e.lrNumber}` : "No LR"} · {fromText} → {toText}
+                    </div>
+                    <div className="mt-2.5 grid grid-cols-2 gap-2 text-xs border-t border-[#EFECE6] pt-2">
+                      <span>N {formatTons(e.nWeight)}</span>
+                      <span>R {formatTons(e.rWeight)}</span>
+                      <span className="col-span-2 font-bold text-[#E05638]">{partyText}</span>
+                      <span className="col-span-2 text-[#5F6368]">{companyText}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
-      </Modal>
+      </Panel>
 
-      {/* View Modal */}
-      <Modal
-        open={modal?.mode === "view"}
-        onClose={() => setModal(null)}
-        title={`Daily Trip Detail — Sr No #${viewRecord?.srNo ?? ""}`}
-        size="lg"
-      >
-        {viewRecord && <DailyEntryViewModal entry={viewRecord} onClose={() => setModal(null)} />}
-      </Modal>
+      {/* Trip Detail Modal Dialog */}
+      {detailEntry && (
+        <TripDetailModal entry={detailEntry} onClose={() => setDetailEntry(null)} />
+      )}
+
+      {/* Edit Entry Modal Dialog */}
+      {editEntry && (
+        <Modal
+          open={Boolean(editEntry)}
+          onClose={() => setEditEntry(null)}
+          title={`Edit Daily Entry (Sr No #${editEntry.srNo})`}
+          size="xl"
+        >
+          {editEntry.isBilled ? (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
+              <p className="font-bold flex items-center gap-1.5">
+                <Lock size={14} className="text-amber-600" />
+                Editing Locked (Billed Entry)
+              </p>
+              <p>
+                This trip is already linked to Bill #{editEntry.billNumber ?? editEntry.billId}. Billed entries are locked to maintain accounting integrity.
+              </p>
+              <Button variant="secondary" size="sm" onClick={() => setEditEntry(null)}>
+                Close
+              </Button>
+            </div>
+          ) : (
+            <DailyEntryForm
+              initial={recordToFormState(editEntry)}
+              parties={parties}
+              companies={companies}
+              trucks={trucks}
+              locations={locations}
+              onSubmit={(payload) => handleEditSubmit(editEntry.id, payload)}
+              onCancel={() => setEditEntry(null)}
+              loading={submitting}
+              error={submitError}
+              submitLabel="Save Changes"
+            />
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
