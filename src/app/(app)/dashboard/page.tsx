@@ -4,22 +4,22 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useFirm } from "@/lib/firm-context";
 import { PageHeader } from "@/components/ui/page-header";
-import { Button, Badge } from "@/components/ui/primitives";
+import { Button, Badge, Panel } from "@/components/ui/primitives";
+import { StatCard } from "@/components/ui/stat-card";
+import { MoneyDisplay } from "@/components/ui/format-display";
+import { TableShell, Th, Td } from "@/components/ui/data-table";
 import {
   BookOpen,
   FileText,
   CreditCard,
   Clock,
-  BarChart3,
   TrendingUp,
   AlertCircle,
   RefreshCw,
   Calendar,
-  CheckCircle2,
-  DollarSign,
   Truck,
   ArrowUpRight,
-  ShieldCheck,
+  Filter,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -149,54 +149,88 @@ export default function DashboardPage() {
     }
   };
 
+  const agingMax = Math.max(
+    1,
+    data?.aging?.bucket0to30 || 0,
+    data?.aging?.bucket31to60 || 0,
+    data?.aging?.bucket61to90 || 0,
+    data?.aging?.bucket91to180 || 0,
+    data?.aging?.bucket181Plus || 0
+  );
+
   return (
     <div className="space-y-6 animate-fade-in pb-8">
       {/* Header */}
       <PageHeader
-        title="Management Dashboard"
-        subtitle="Authoritative Read-Only Overview for Active Transport Firm"
+        eyebrow={`${formatDate(new Date().toISOString())} · ${currentFirm?.name || "Active Firm"}`}
+        title={
+          <>
+            Books for <span className="text-coral">{currentFirm?.name || "Active Firm"}</span>
+          </>
+        }
+        description="Management summary. All figures below belong only to the active firm."
         actions={
-          <Button variant="secondary" size="sm" onClick={fetchDashboardData} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh Overview
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/daily-book">
+              <Button variant="ink" size="sm">
+                📒 Add trip
+              </Button>
+            </Link>
+            <Link href="/billing/new">
+              <Button variant="coral" size="sm">
+                🧾 Create bill
+              </Button>
+            </Link>
+            <Button variant="secondary" size="sm" onClick={fetchDashboardData} disabled={loading}>
+              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         }
       />
 
       {/* Filter Toolbar */}
-      <div className="bg-white border border-slate-200 rounded p-3 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+      <div className="panel p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-slate-500 font-semibold mr-1 flex items-center gap-1">
-            <FilterIcon /> Period:
+          <span className="text-gray-500 font-semibold mr-1 flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5" /> Period:
           </span>
           <button
             onClick={() => handlePresetChange("all")}
-            className={`px-3 py-1.5 rounded font-medium transition-colors ${
-              periodPreset === "all" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+              periodPreset === "all"
+                ? "bg-coral text-coral-foreground font-semibold"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
             }`}
           >
             All Time
           </button>
           <button
             onClick={() => handlePresetChange("today")}
-            className={`px-3 py-1.5 rounded font-medium transition-colors ${
-              periodPreset === "today" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+              periodPreset === "today"
+                ? "bg-coral text-coral-foreground font-semibold"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
             }`}
           >
             Today
           </button>
           <button
             onClick={() => handlePresetChange("month")}
-            className={`px-3 py-1.5 rounded font-medium transition-colors ${
-              periodPreset === "month" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+              periodPreset === "month"
+                ? "bg-coral text-coral-foreground font-semibold"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
             }`}
           >
             This Month
           </button>
           <button
             onClick={() => handlePresetChange("fy")}
-            className={`px-3 py-1.5 rounded font-medium transition-colors ${
-              periodPreset === "fy" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+              periodPreset === "fy"
+                ? "bg-coral text-coral-foreground font-semibold"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
             }`}
           >
             This FY (2026-27)
@@ -206,7 +240,7 @@ export default function DashboardPage() {
         {/* Custom Range */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <Calendar className="w-3.5 h-3.5 text-gray-400" />
             <input
               type="date"
               value={startDate}
@@ -214,9 +248,9 @@ export default function DashboardPage() {
                 setStartDate(e.target.value);
                 setPeriodPreset("custom");
               }}
-              className="px-2 py-1 border border-slate-300 rounded text-xs"
+              className="px-2 py-1 border border-gray-300 rounded-lg text-xs dark:bg-gray-900 dark:border-gray-700"
             />
-            <span className="text-slate-400">to</span>
+            <span className="text-gray-400">to</span>
             <input
               type="date"
               value={endDate}
@@ -224,319 +258,165 @@ export default function DashboardPage() {
                 setEndDate(e.target.value);
                 setPeriodPreset("custom");
               }}
-              className="px-2 py-1 border border-slate-300 rounded text-xs"
+              className="px-2 py-1 border border-gray-300 rounded-lg text-xs dark:bg-gray-900 dark:border-gray-700"
             />
           </div>
         </div>
       </div>
 
-      {/* Main Stats Summary Row */}
+      {/* Main Stats Summary Row (4 StatCards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Outstanding Card */}
-        <div className="bg-white border border-slate-200 rounded p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Outstanding</p>
-              <p className="text-2xl font-bold text-slate-900 font-mono mt-1">
-                {formatCurrency(data?.outstanding?.totalOutstandingAmount || 0)}
-              </p>
+        <StatCard
+          tone="coral"
+          label="Total Outstanding"
+          value={formatCurrency(data?.outstanding?.totalOutstandingAmount || 0)}
+          hint={`${data?.outstanding?.totalBills || 0} open bills`}
+          icon={TrendingUp}
+          iconColor="#ff5e3a"
+        />
+        <StatCard
+          tone="ink"
+          label="Net Billed Revenue"
+          value={formatCurrency(data?.billing?.netPayableTotal || 0)}
+          hint={`${data?.billing?.billCount || 0} bills posted`}
+          icon={FileText}
+          iconColor="#1a1d20"
+        />
+        <StatCard
+          tone="sun"
+          label="Payment Receipts"
+          value={formatCurrency(data?.payments?.totalReceipts || 0)}
+          hint={`${data?.payments?.paymentCount || 0} receipts`}
+          icon={CreditCard}
+          iconColor="#f59e0b"
+        />
+        <StatCard
+          tone="turq"
+          label="Daily Book Trips"
+          value={String(data?.dailyBook?.totalEntries || 0)}
+          hint={`${data?.dailyBook?.receivedCount || 0} received · ${data?.dailyBook?.pendingCount || 0} pending`}
+          icon={BookOpen}
+          iconColor="#45d4b2"
+        />
+      </div>
+
+      {/* Grid Row 2: Billing, Payments, and Aging Breakdowns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Billing Breakdown */}
+        <Panel title="Billing breakdown">
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
+              <span>Gross Freight</span>
+              <MoneyDisplay amount={data?.billing?.grossFreightTotal || 0} />
             </div>
-            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-              <TrendingUp className="w-5 h-5" />
+            <div className="flex items-center justify-between text-red-600 dark:text-red-400">
+              <span>Less: Shortage Debit Notes</span>
+              <span>− <MoneyDisplay amount={data?.billing?.shortageDebitTotal || 0} className="text-red-600 dark:text-red-400" /></span>
+            </div>
+            <div className="flex items-center justify-between text-purple-600 dark:text-purple-400">
+              <span>Less: TDS Withheld</span>
+              <span>− <MoneyDisplay amount={data?.billing?.tdsTotal || 0} className="text-purple-600 dark:text-purple-400" /></span>
+            </div>
+            <div className="flex items-center justify-between border-t-2 border-dashed border-gray-200 dark:border-gray-800 pt-3">
+              <span className="font-semibold text-gray-900 dark:text-white">Net Bill Amount</span>
+              <MoneyDisplay amount={data?.billing?.netPayableTotal || 0} className="text-xl text-emerald-600 dark:text-emerald-400 font-bold" />
             </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>{data?.outstanding?.totalBills || 0} Bills Pending Settlement</span>
-            <Link href="/reports/outstanding" className="text-blue-600 hover:underline flex items-center gap-0.5">
+        </Panel>
+
+        {/* Payments Summary */}
+        <Panel title="Payments">
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
+              <span>Total Received</span>
+              <MoneyDisplay amount={data?.payments?.totalReceipts || 0} />
+            </div>
+            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
+              <span>Against-Bill Payments</span>
+              <MoneyDisplay amount={data?.payments?.againstBillTotal || 0} />
+            </div>
+            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
+              <span>Advance Payments</span>
+              <MoneyDisplay amount={data?.payments?.advanceTotal || 0} />
+            </div>
+            <div className="flex items-center justify-between rounded-2xl bg-sun-light dark:bg-amber-950/40 px-4 py-3">
+              <span className="text-xs font-semibold text-gray-800 dark:text-amber-200">Bill Settlements</span>
+              <span className="text-xs font-semibold tnum text-gray-900 dark:text-white">
+                {data?.outstanding?.pendingCount || 0} Pending · {data?.outstanding?.partiallyPaidCount || 0} Partial · {data?.outstanding?.paidCount || 0} Paid
+              </span>
+            </div>
+          </div>
+        </Panel>
+
+        {/* Aging Analysis */}
+        <Panel
+          title="Aging"
+          subtitle="Outstanding by age of bill"
+          action={
+            <Link href="/reports/aging" className="text-xs font-semibold text-coral hover:underline flex items-center gap-0.5">
               Report <ArrowUpRight className="w-3 h-3" />
             </Link>
+          }
+        >
+          <div className="space-y-3 text-xs">
+            <AgingBar label="0 – 30 Days" amount={data?.aging?.bucket0to30 || 0} max={agingMax} />
+            <AgingBar label="31 – 60 Days" amount={data?.aging?.bucket31to60 || 0} max={agingMax} />
+            <AgingBar label="61 – 90 Days" amount={data?.aging?.bucket61to90 || 0} max={agingMax} />
+            <AgingBar label="91 – 180 Days" amount={data?.aging?.bucket91to180 || 0} max={agingMax} />
+            <AgingBar label="181+ Days" amount={data?.aging?.bucket181Plus || 0} max={agingMax} isDanger />
           </div>
-        </div>
-
-        {/* Total Billing Net Revenue */}
-        <div className="bg-white border border-slate-200 rounded p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Net Billed Revenue</p>
-              <p className="text-2xl font-bold text-blue-700 font-mono mt-1">
-                {formatCurrency(data?.billing?.netPayableTotal || 0)}
-              </p>
-            </div>
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-              <FileText className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>{data?.billing?.billCount || 0} Invoice Bills Created</span>
-            <Link href="/billing/bills" className="text-blue-600 hover:underline flex items-center gap-0.5">
-              Bills List <ArrowUpRight className="w-3 h-3" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Total Payment Receipts */}
-        <div className="bg-white border border-slate-200 rounded p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment Receipts</p>
-              <p className="text-2xl font-bold text-emerald-700 font-mono mt-1">
-                {formatCurrency(data?.payments?.totalReceipts || 0)}
-              </p>
-            </div>
-            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-              <CreditCard className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Against-Bill: {formatCurrency(data?.payments?.againstBillTotal || 0)}</span>
-            <Link href="/payments" className="text-blue-600 hover:underline flex items-center gap-0.5">
-              Payments <ArrowUpRight className="w-3 h-3" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Daily Trips Count */}
-        <div className="bg-white border border-slate-200 rounded p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Daily Book Trips</p>
-              <p className="text-2xl font-bold text-slate-900 mt-1">{data?.dailyBook?.totalEntries || 0}</p>
-            </div>
-            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-              <BookOpen className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-emerald-700 font-medium">Received: {data?.dailyBook?.receivedCount || 0}</span>
-            <span className="text-amber-700 font-medium">Pending: {data?.dailyBook?.pendingCount || 0}</span>
-          </div>
-        </div>
+        </Panel>
       </div>
 
-      {/* Grid Row 2: Billing & Outstanding Breakdowns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Billing Calculations Breakdown */}
-        <div className="bg-white border border-slate-200 rounded p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b pb-3">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-600" />
-              Authoritative Billing & Revenue Breakdown
-            </h2>
-            <Badge variant="neutral">{data?.billing?.billCount || 0} Bills</Badge>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="bg-slate-50 border border-slate-200 p-3 rounded">
-              <p className="text-slate-500 font-medium">Gross Freight Subtotal</p>
-              <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-                {formatCurrency(data?.billing?.grossFreightTotal || 0)}
-              </p>
-            </div>
-
-            <div className="bg-red-50 border border-red-200 p-3 rounded">
-              <p className="text-red-700 font-medium">Less: Shortage Debit Notes</p>
-              <p className="text-sm font-bold text-red-900 font-mono mt-1">
-                - {formatCurrency(data?.billing?.shortageDebitTotal || 0)}
-              </p>
-            </div>
-
-            <div className="bg-purple-50 border border-purple-200 p-3 rounded">
-              <p className="text-purple-700 font-medium">Less: TDS Withheld</p>
-              <p className="text-sm font-bold text-purple-900 font-mono mt-1">
-                - {formatCurrency(data?.billing?.tdsTotal || 0)}
-              </p>
-            </div>
-
-            <div className="bg-emerald-50 border border-emerald-200 p-3 rounded">
-              <p className="text-emerald-800 font-medium">Net Bill Amount Payable</p>
-              <p className="text-sm font-extrabold text-emerald-900 font-mono mt-1">
-                {formatCurrency(data?.billing?.netPayableTotal || 0)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Payments & Receipts Summary */}
-        <div className="bg-white border border-slate-200 rounded p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b pb-3">
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-emerald-600" />
-              Payment Receipts Breakdown
-            </h2>
-            <Badge variant="success">{data?.payments?.paymentCount || 0} Transactions</Badge>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 text-xs">
-            <div className="bg-emerald-50 border border-emerald-200 p-3 rounded col-span-3 sm:col-span-1">
-              <p className="text-emerald-800 font-medium">Total Received</p>
-              <p className="text-base font-bold text-emerald-950 font-mono mt-1">
-                {formatCurrency(data?.payments?.totalReceipts || 0)}
-              </p>
-            </div>
-
-            <div className="bg-slate-50 border border-slate-200 p-3 rounded col-span-3 sm:col-span-1">
-              <p className="text-slate-600 font-medium">Against Bill Payments</p>
-              <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-                {formatCurrency(data?.payments?.againstBillTotal || 0)}
-              </p>
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 p-3 rounded col-span-3 sm:col-span-1">
-              <p className="text-blue-700 font-medium">Advance Payments</p>
-              <p className="text-sm font-bold text-blue-900 font-mono mt-1">
-                {formatCurrency(data?.payments?.advanceTotal || 0)}
-              </p>
-            </div>
-          </div>
-
-          <div className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded border border-slate-100 flex items-center justify-between">
-            <span>Bill Settlement Statuses:</span>
-            <span className="font-semibold text-slate-800">
-              {data?.outstanding?.pendingCount || 0} Pending | {data?.outstanding?.partiallyPaidCount || 0} Partial | {data?.outstanding?.paidCount || 0} Fully Paid
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Customer Accounts Aging Analysis */}
-      <div className="bg-white border border-slate-200 rounded p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b pb-3">
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-600" />
-              Customer Accounts Aging Analysis
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">Authoritative bill aging breakdown across 5 standard time buckets</p>
-          </div>
-          <Link href="/reports/aging" className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-0.5">
-            Full Aging Report <ArrowUpRight className="w-3.5 h-3.5" />
+      {/* Driver Vouchers Operational Summary */}
+      <Panel
+        title="Driver voucher summary"
+        subtitle="Operational Voucher — Accounting Treatment Pending Confirmation"
+        action={
+          <Link href="/driver-vouchers" className="text-xs font-semibold text-coral hover:underline flex items-center gap-0.5">
+            Vouchers <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
+        }
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+          <MiniStat label="Advance" value={data?.driverVouchers?.totalAdvance || 0} />
+          <MiniStat label="Cash" value={data?.driverVouchers?.totalCash || 0} />
+          <MiniStat label="Diesel" value={data?.driverVouchers?.totalDiesel || 0} />
+          <MiniStat label="A/c" value={data?.driverVouchers?.totalAc || 0} />
+          <MiniStat label="Total Operational" value={data?.driverVouchers?.totalExpense || 0} highlight />
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-          <div className="bg-emerald-50 border border-emerald-200 p-3 rounded text-center">
-            <p className="text-emerald-800 font-semibold">0 – 30 Days</p>
-            <p className="text-sm font-bold text-emerald-950 font-mono mt-1">
-              {formatCurrency(data?.aging?.bucket0to30 || 0)}
-            </p>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 p-3 rounded text-center">
-            <p className="text-blue-800 font-semibold">31 – 60 Days</p>
-            <p className="text-sm font-bold text-blue-950 font-mono mt-1">
-              {formatCurrency(data?.aging?.bucket31to60 || 0)}
-            </p>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 p-3 rounded text-center">
-            <p className="text-amber-800 font-semibold">61 – 90 Days</p>
-            <p className="text-sm font-bold text-amber-950 font-mono mt-1">
-              {formatCurrency(data?.aging?.bucket61to90 || 0)}
-            </p>
-          </div>
-
-          <div className="bg-orange-50 border border-orange-200 p-3 rounded text-center">
-            <p className="text-orange-800 font-semibold">91 – 180 Days</p>
-            <p className="text-sm font-bold text-orange-950 font-mono mt-1">
-              {formatCurrency(data?.aging?.bucket91to180 || 0)}
-            </p>
-          </div>
-
-          <div className="bg-red-50 border border-red-200 p-3 rounded text-center col-span-2 sm:col-span-1">
-            <p className="text-red-800 font-semibold">181+ Days</p>
-            <p className="text-sm font-extrabold text-red-950 font-mono mt-1">
-              {formatCurrency(data?.aging?.bucket181Plus || 0)}
-            </p>
-          </div>
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+          <span>
+            These operational amounts are not posted to the accounting ledger. Status:{" "}
+            <Badge tone="pending">PENDING CONFIRMATION</Badge>
+          </span>
         </div>
-      </div>
+      </Panel>
 
-      {/* Driver Vouchers Operational Expense Breakdown */}
-      <div className="bg-white border border-slate-200 rounded p-5 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
-          <div className="flex items-center gap-2">
-            <Truck className="w-4 h-4 text-amber-600" />
-            <h2 className="text-sm font-bold text-slate-900">
-              Driver Vouchers Operational Expense Breakdown
-            </h2>
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-300">
-              PENDING CONFIRMATION
-            </span>
-          </div>
-          <Link href="/driver-vouchers" className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-0.5">
-            Driver Vouchers Page <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-900 flex items-start gap-2.5">
-          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold">Operational Data Only:</span> Driver Voucher totals are displayed as operational advances and expenses. Accounting Dr/Cr treatment is pending client confirmation; these amounts are **not included** in ledger/accounting expense postings.
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-xs">
-          <div className="bg-slate-50 border border-slate-200 p-3 rounded">
-            <p className="text-slate-500 font-medium">Vouchers Count</p>
-            <p className="text-sm font-bold text-slate-900 mt-1">{data?.driverVouchers?.totalVouchers || 0}</p>
-          </div>
-
-          <div className="bg-slate-50 border border-slate-200 p-3 rounded">
-            <p className="text-slate-500 font-medium">Advance</p>
-            <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers?.totalAdvance || 0)}
-            </p>
-          </div>
-
-          <div className="bg-slate-50 border border-slate-200 p-3 rounded">
-            <p className="text-slate-500 font-medium">Cash</p>
-            <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers?.totalCash || 0)}
-            </p>
-          </div>
-
-          <div className="bg-slate-50 border border-slate-200 p-3 rounded">
-            <p className="text-slate-500 font-medium">Diesel</p>
-            <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers?.totalDiesel || 0)}
-            </p>
-          </div>
-
-          <div className="bg-slate-50 border border-slate-200 p-3 rounded">
-            <p className="text-slate-500 font-medium">A/c</p>
-            <p className="text-sm font-bold text-slate-900 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers?.totalAc || 0)}
-            </p>
-          </div>
-
-          <div className="bg-amber-100/50 border border-amber-300 p-3 rounded font-bold col-span-2 sm:col-span-1">
-            <p className="text-amber-900 font-semibold">Total Operational</p>
-            <p className="text-sm font-extrabold text-amber-950 font-mono mt-1">
-              {formatCurrency(data?.driverVouchers?.totalExpense || 0)}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Grid Row 3: Recent Bills & Payments Activity */}
+      {/* Grid Row 3: Recent Bills & Recent Payments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Bills */}
-        <div className="bg-white border border-slate-200 rounded p-4 shadow-sm">
-          <div className="flex items-center justify-between border-b pb-3 mb-3">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Recent Bills</h3>
-            <Link href="/billing/bills" className="text-xs text-blue-600 hover:underline">View All →</Link>
-          </div>
+        <Panel
+          title="Recent Bills"
+          subtitle="Latest invoices generated for this firm"
+          action={
+            <Link href="/billing/bills" className="text-xs font-semibold text-coral hover:underline">
+              View All →
+            </Link>
+          }
+        >
           {data?.billing?.recentBills && data.billing.recentBills.length > 0 ? (
-            <div className="divide-y divide-slate-100 text-xs">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
               {data.billing.recentBills.map((b) => (
                 <div key={b.id} className="py-2.5 flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-slate-900">#{b.billNumber}</p>
-                    <p className="text-slate-500 text-[11px]">{b.partyName} • {formatDate(b.billDate)}</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">Bill #{b.billNumber}</p>
+                    <p className="text-gray-500 text-[11px]">{b.partyName} • {formatDate(b.billDate)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono font-bold text-slate-900">{formatCurrency(b.netBillAmount)}</p>
-                    <Badge variant={b.status === "PAID" ? "success" : b.status === "PARTIALLY_PAID" ? "warning" : "neutral"}>
+                    <MoneyDisplay amount={Number(b.netBillAmount || 0)} className="block font-bold text-gray-900 dark:text-white" />
+                    <Badge tone={b.status === "PAID" ? "posted" : b.status === "PARTIALLY_PAID" ? "pending" : "neutral"}>
                       {b.status}
                     </Badge>
                   </div>
@@ -544,49 +424,100 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="py-8 text-center text-slate-400 text-xs">
+            <div className="py-8 text-center text-gray-400 text-xs">
               No bills recorded yet.
             </div>
           )}
-        </div>
+        </Panel>
 
         {/* Recent Payments */}
-        <div className="bg-white border border-slate-200 rounded p-4 shadow-sm">
-          <div className="flex items-center justify-between border-b pb-3 mb-3">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Recent Payment Receipts</h3>
-            <Link href="/payments" className="text-xs text-blue-600 hover:underline">View All →</Link>
-          </div>
+        <Panel
+          title="Recent Payment Receipts"
+          subtitle="Latest receipts recorded for this firm"
+          action={
+            <Link href="/payments" className="text-xs font-semibold text-coral hover:underline">
+              View All →
+            </Link>
+          }
+        >
           {data?.payments?.recentPayments && data.payments.recentPayments.length > 0 ? (
-            <div className="divide-y divide-slate-100 text-xs">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
               {data.payments.recentPayments.map((p) => (
                 <div key={p.id} className="py-2.5 flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-slate-900">{p.partyName}</p>
-                    <p className="text-slate-500 text-[11px]">
+                    <p className="font-semibold text-gray-900 dark:text-white">{p.partyName}</p>
+                    <p className="text-gray-500 text-[11px]">
                       {formatDate(p.paymentDate)} • {p.paymentMode} ({p.paymentType})
                     </p>
                   </div>
-                  <div className="text-right font-mono font-bold text-emerald-700">
-                    + {formatCurrency(p.amount)}
+                  <div className="text-right">
+                    <MoneyDisplay amount={Number(p.amount || 0)} className="font-bold text-emerald-600 dark:text-emerald-400" />
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="py-8 text-center text-slate-400 text-xs">
+            <div className="py-8 text-center text-gray-400 text-xs">
               No payments recorded yet.
             </div>
           )}
-        </div>
+        </Panel>
       </div>
     </div>
   );
 }
 
-function FilterIcon() {
+function AgingBar({
+  label,
+  amount,
+  max,
+  isDanger,
+}: {
+  label: string;
+  amount: number;
+  max: number;
+  isDanger?: boolean;
+}) {
+  const percentage = Math.min(100, Math.max(0, (amount / max) * 100));
   return (
-    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-    </svg>
+    <div>
+      <div className="mb-1 flex items-center justify-between font-semibold">
+        <span className="text-gray-500">{label}</span>
+        <MoneyDisplay amount={amount} />
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${
+            isDanger ? "bg-red-500" : "bg-coral"
+          }`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={
+        highlight
+          ? "rounded-2xl bg-ink p-3.5 text-white"
+          : "rounded-2xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3.5"
+      }
+    >
+      <div className="text-[10px] font-semibold tracking-wider uppercase opacity-70">{label}</div>
+      <div className="mt-1">
+        <MoneyDisplay amount={value} className={highlight ? "text-lg text-white" : "text-lg text-gray-900 dark:text-white"} />
+      </div>
+    </div>
   );
 }
