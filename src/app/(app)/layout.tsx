@@ -14,14 +14,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground app-shell">
+    <div className="min-h-screen bg-background text-foreground">
       <Sidebar />
-      <div className="main-area">
-        <Topbar />
-        <main className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8 lg:ml-[248px] page-content">
-          {children}
-        </main>
-      </div>
+      <Topbar />
+      <main className="mx-auto max-w-[1320px] px-4 py-6 md:px-8 md:py-8 lg:ml-[248px]">
+        {children}
+      </main>
     </div>
   );
 }
+
