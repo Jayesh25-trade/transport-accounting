@@ -1,20 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Bell, Search, HelpCircle, Loader2, Menu } from "lucide-react";
 import { useFirm } from "@/lib/firm-context";
-
-const FIRM_COLORS = ["#6366f1", "#10b981", "#f59e0b", "#3b82f6"];
+import { FirmSwitcher, NavList } from "./sidebar";
 
 export function Topbar() {
-  const { currentFirm, firms, loading } = useFirm();
-  const firmIdx = firms.findIndex((f) => f.id === currentFirm?.id);
-  const color = FIRM_COLORS[firmIdx % FIRM_COLORS.length] ?? "#6366f1";
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { currentFirm } = useFirm();
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const handleToggle = () => setMobileMenuOpen((prev) => !prev);
-    const handleClose = () => setMobileMenuOpen(false);
+    const handleToggle = () => setOpen((prev) => !prev);
+    const handleClose = () => setOpen(false);
 
     window.addEventListener("toggle-mobile-sidebar", handleToggle);
     window.addEventListener("close-mobile-sidebar", handleClose);
@@ -26,90 +22,53 @@ export function Topbar() {
   }, []);
 
   const toggleMobileSidebar = () => {
+    setOpen((prev) => !prev);
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("toggle-mobile-sidebar"));
     }
   };
 
+  const shortName = currentFirm
+    ? currentFirm.name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "DT";
+
   return (
-    <header className="topbar">
-      {/* Mobile Menu Toggle */}
-      <button
-        type="button"
-        onClick={toggleMobileSidebar}
-        className="btn btn-ghost btn-sm w-8 h-8 p-0 rounded-lg justify-center md:hidden"
-        aria-label="Toggle mobile menu"
-        aria-expanded={mobileMenuOpen}
-        id="mobile-menu-toggle"
-      >
-        <Menu size={20} />
-      </button>
-
-      {/* Search */}
-      <div className="flex-1 max-w-sm">
-        <div className="relative">
-          <Search
-            size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="search"
-            placeholder="Search bills, parties, trucks…"
-            className="form-input pl-8 py-1.5 text-sm"
-            id="topbar-search"
-          />
+    <>
+      {/* Mobile top bar */}
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 bg-ink px-4 py-3 text-ink-foreground lg:hidden">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <div className="font-display grid size-8 shrink-0 place-items-center rounded-xl bg-coral text-sm font-bold text-coral-foreground">
+            {shortName}
+          </div>
+          <div className="text-sm font-semibold truncate">
+            {currentFirm?.name || "Transport App"}
+          </div>
         </div>
-      </div>
-
-      <div className="flex-1" />
-
-      {/* Active Firm Badge */}
-      {loading ? (
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-400">
-          <Loader2 size={12} className="animate-spin" />
-          Loading…
-        </div>
-      ) : currentFirm ? (
-        <div
-          className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-          style={{
-            background: `${color}18`,
-            color,
-            border: `1px solid ${color}30`,
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-          {currentFirm.name}
-        </div>
-      ) : null}
-
-      {/* Actions */}
-      <div className="flex items-center gap-1">
         <button
-          className="btn btn-ghost btn-sm w-8 h-8 p-0 rounded-full justify-center"
-          title="Help"
-          id="topbar-help"
+          type="button"
+          id="mobile-menu-toggle"
+          onClick={toggleMobileSidebar}
+          aria-expanded={open}
+          className="rounded-full border-2 border-white/20 px-3 py-1.5 text-xs font-semibold shrink-0"
         >
-          <HelpCircle size={16} />
-        </button>
-        <button
-          className="btn btn-ghost btn-sm w-8 h-8 p-0 rounded-full justify-center relative"
-          title="Notifications"
-          id="topbar-notifications"
-        >
-          <Bell size={16} />
+          {open ? "Close" : "Menu"}
         </button>
       </div>
 
-      {/* Avatar */}
-      <div
-        className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold cursor-pointer flex-shrink-0"
-        style={{ background: color }}
-        title="Account"
-        id="topbar-avatar"
-      >
-        {currentFirm ? currentFirm.name[0] : "?"}
-      </div>
-    </header>
+      {/* Mobile Drawer */}
+      {open && (
+        <div className="sticky top-[56px] z-30 max-h-[70vh] overflow-y-auto bg-ink px-4 pb-5 text-ink-foreground lg:hidden border-t border-white/10">
+          <FirmSwitcher compact />
+          <div className="mt-3">
+            <NavList onNavigate={() => setOpen(false)} />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
