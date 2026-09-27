@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, max } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { dailyEntries, driverVouchers, trips, bills, parties, companies, trucks, locations } from "../db/schema";
@@ -354,4 +354,18 @@ export async function getDailyEntryById(db: NodePgDatabase<any>, entryId: string
   if (res.length === 0) throw new EntityNotFoundError("DailyEntry", entryId);
   return res[0];
 }
+
+export async function getNextSrNo(db: NodePgDatabase<any>, firmId: string): Promise<number> {
+  const result = await db
+    .select({ maxSrNo: max(dailyEntries.srNo) })
+    .from(dailyEntries)
+    .where(eq(dailyEntries.firmId, firmId));
+
+  const currentMax = result[0]?.maxSrNo;
+  if (currentMax === null || currentMax === undefined) {
+    return 1;
+  }
+  return Number(currentMax) + 1;
+}
+
 
