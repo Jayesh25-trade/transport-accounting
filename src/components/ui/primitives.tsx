@@ -2,24 +2,44 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 // ─── Badge ──────────────────────────────────────────────────
-type BadgeVariant = "success" | "warning" | "danger" | "info" | "neutral";
+type BadgeVariant =
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "neutral"
+  | "posted"
+  | "pending"
+  | "received"
+  | "coral"
+  | "turq"
+  | "sun";
 
 interface BadgeProps {
   variant?: BadgeVariant;
+  tone?: BadgeVariant;
   children: React.ReactNode;
   className?: string;
 }
 
-export function Badge({ variant = "neutral", children, className }: BadgeProps) {
+export function Badge({ variant, tone, children, className }: BadgeProps) {
+  const activeVariant = tone || variant || "neutral";
   return (
-    <span className={cn("badge", `badge-${variant}`, className)}>
+    <span className={cn("badge", `badge-${activeVariant}`, className)}>
       {children}
     </span>
   );
 }
 
 // ─── Button ──────────────────────────────────────────────────
-type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "danger"
+  | "ghost"
+  | "coral"
+  | "ink"
+  | "turq";
 type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -79,6 +99,38 @@ export function Button({
       {children}
       {!loading && Icon && iconPosition === "right" && <Icon size={14} />}
     </button>
+  );
+}
+
+// ─── Panel / Container ───────────────────────────────────────
+interface PanelProps {
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export function Panel({
+  title,
+  subtitle,
+  action,
+  children,
+  className,
+}: PanelProps) {
+  return (
+    <div className={cn("panel mb-6", className)}>
+      {(title || subtitle || action) && (
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div>
+            {title && <h3 className="panel-title">{title}</h3>}
+            {subtitle && <p className="panel-subtitle">{subtitle}</p>}
+          </div>
+          {action && <div className="flex items-center gap-2">{action}</div>}
+        </div>
+      )}
+      {children}
+    </div>
   );
 }
 

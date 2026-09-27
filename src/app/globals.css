@@ -31,6 +31,17 @@
   --danger:  #ef4444;
   --info:    #3b82f6;
 
+  /* Lovable Palette Tokens */
+  --ink: #1a1d20;
+  --ink-foreground: #ffffff;
+  --coral: #ff5e3a;
+  --coral-foreground: #ffffff;
+  --sun: #ffe800;
+  --sun-light: #fff8d6;
+  --turq: #45d4b2;
+  --turq-foreground: #1a1d20;
+  --shadow-flat: 4px 4px 0px #1a1d20;
+
   /* Layout */
   --sidebar-width: 240px;
   --sidebar-collapsed-width: 64px;
@@ -355,6 +366,12 @@ body {
 .badge-danger  { background: #fee2e2; color: #991b1b; }
 .badge-info    { background: #dbeafe; color: #1e40af; }
 .badge-neutral { background: var(--gray-100); color: var(--gray-700); }
+.badge-posted  { background: var(--turq); color: var(--turq-foreground); }
+.badge-pending { background: var(--sun); color: #1a1d20; }
+.badge-received{ background: #d1fae5; color: #065f46; }
+.badge-coral   { background: var(--coral); color: var(--coral-foreground); }
+.badge-turq    { background: var(--turq); color: var(--turq-foreground); }
+.badge-sun     { background: var(--sun); color: #1a1d20; }
 
 @media (prefers-color-scheme: dark) {
   .badge-success { background: #064e3b; color: #6ee7b7; }
@@ -362,6 +379,35 @@ body {
   .badge-danger  { background: #7f1d1d; color: #fca5a5; }
   .badge-info    { background: #1e3a5f; color: #93c5fd; }
   .badge-neutral { background: var(--gray-800); color: var(--gray-300); }
+  .badge-posted  { background: #164e43; color: #6ee7b7; }
+  .badge-pending { background: #78350f; color: #fde68a; }
+  .badge-received{ background: #064e3b; color: #6ee7b7; }
+  .badge-coral   { background: #992911; color: #fca5a5; }
+  .badge-turq    { background: #164e43; color: #6ee7b7; }
+  .badge-sun     { background: #78350f; color: #fde68a; }
+}
+
+/* ─── Panels / Cards ────────────────────────────────────────── */
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.01em;
+}
+
+.panel-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
 }
 
 /* ─── Table ─────────────────────────────────────────────────── */
@@ -437,6 +483,15 @@ body {
 
 .btn-primary   { background: var(--brand-600); color: #fff; }
 .btn-primary:hover { background: var(--brand-700); }
+
+.btn-coral     { background: var(--coral); color: var(--coral-foreground); font-weight: 600; }
+.btn-coral:hover { opacity: 0.9; }
+
+.btn-ink       { background: var(--ink); color: var(--ink-foreground); font-weight: 600; }
+.btn-ink:hover { opacity: 0.9; }
+
+.btn-turq      { background: var(--turq); color: var(--turq-foreground); font-weight: 600; }
+.btn-turq:hover { opacity: 0.9; }
 
 .btn-secondary { background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border-color); }
 .btn-secondary:hover { background: var(--gray-100); }

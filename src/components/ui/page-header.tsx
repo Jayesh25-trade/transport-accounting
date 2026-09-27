@@ -8,8 +8,10 @@ export interface BreadcrumbItem {
 }
 
 interface PageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   subtitle?: string;
+  description?: string;
+  eyebrow?: string;
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
 }
@@ -17,13 +19,21 @@ interface PageHeaderProps {
 export function PageHeader({
   title,
   subtitle,
+  description,
+  eyebrow,
   breadcrumbs,
   actions,
 }: PageHeaderProps) {
+  const displaySubtitle = subtitle || description;
   return (
-    <div className="page-header">
-      <div className="flex items-start justify-between gap-4">
+    <div className="page-header mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
+          {eyebrow && (
+            <div className="text-[11px] font-semibold tracking-[0.2em] text-coral uppercase mb-1">
+              {eyebrow}
+            </div>
+          )}
           {/* Breadcrumbs */}
           {breadcrumbs && breadcrumbs.length > 0 && (
             <nav aria-label="Breadcrumb" className="breadcrumb mb-1.5">
@@ -43,9 +53,9 @@ export function PageHeader({
             </nav>
           )}
 
-          <h1>{title}</h1>
-          {subtitle && (
-            <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{title}</h1>
+          {displaySubtitle && (
+            <p className="text-sm text-gray-500 mt-0.5">{displaySubtitle}</p>
           )}
         </div>
 

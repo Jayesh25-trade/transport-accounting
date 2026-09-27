@@ -1,10 +1,14 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
+export type StatTone = "coral" | "ink" | "sun" | "turq" | "neutral";
+
 interface StatCardProps {
   label: string;
   value: string | number;
   sub?: string;
+  hint?: string;
+  tone?: StatTone;
   icon?: React.ElementType;
   iconColor?: string;
   trend?: "up" | "down" | "neutral";
@@ -12,18 +16,35 @@ interface StatCardProps {
   className?: string;
 }
 
+const TONE_BAR_STYLES: Record<StatTone, string> = {
+  coral: "border-t-4 border-coral",
+  ink: "border-t-4 border-ink",
+  sun: "border-t-4 border-sun",
+  turq: "border-t-4 border-turq",
+  neutral: "",
+};
+
 export function StatCard({
   label,
   value,
   sub,
+  hint,
+  tone,
   icon: Icon,
   iconColor = "#6366f1",
   trend,
   trendLabel,
   className,
 }: StatCardProps) {
+  const displaySub = sub || hint;
   return (
-    <div className={cn("stat-card", className)}>
+    <div
+      className={cn(
+        "stat-card",
+        tone && TONE_BAR_STYLES[tone],
+        className
+      )}
+    >
       <div className="flex items-start justify-between">
         <div className="stat-label">{label}</div>
         {Icon && (
@@ -35,8 +56,8 @@ export function StatCard({
           </div>
         )}
       </div>
-      <div className="stat-value">{value}</div>
-      {(sub || trendLabel) && (
+      <div className="stat-value tnum">{value}</div>
+      {(displaySub || trendLabel) && (
         <div className="flex items-center gap-1.5 mt-1">
           {trendLabel && trend && (
             <span
@@ -51,7 +72,7 @@ export function StatCard({
               {trendLabel}
             </span>
           )}
-          {sub && <span className="stat-sub">{sub}</span>}
+          {displaySub && <span className="stat-sub">{displaySub}</span>}
         </div>
       )}
     </div>
