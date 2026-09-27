@@ -1169,7 +1169,7 @@ export default function DailyBookPage() {
           open={Boolean(editEntry)}
           onClose={() => setEditEntry(null)}
           title={`Edit Daily Entry (Sr No #${editEntry.srNo})`}
-          size="xl"
+          size="lg"
         >
           {editEntry.isBilled ? (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
