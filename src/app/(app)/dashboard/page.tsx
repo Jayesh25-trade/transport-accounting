@@ -3,25 +3,19 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useFirm } from "@/lib/firm-context";
-import { PageHeader } from "@/components/ui/page-header";
-import { Button, Badge, Panel } from "@/components/ui/primitives";
-import { StatCard } from "@/components/ui/stat-card";
-import { MoneyDisplay } from "@/components/ui/format-display";
-import { TableShell, Th, Td } from "@/components/ui/data-table";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
-  BookOpen,
+  TrendingUp,
   FileText,
   CreditCard,
-  Clock,
-  TrendingUp,
+  BookOpen,
   AlertCircle,
   RefreshCw,
   Calendar,
-  Truck,
   ArrowUpRight,
   Filter,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface DashboardData {
   dailyBook: {
@@ -86,16 +80,208 @@ interface DashboardData {
   };
 }
 
+// ─── Visual UI Primitives matching Lovable ui-kit ─────────────
+
+function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  eyebrow?: string;
+  title: React.ReactNode;
+  description?: string;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <header className="mb-7 flex flex-wrap items-end justify-between gap-5">
+      <div>
+        {eyebrow && (
+          <div className="mb-2 text-[11px] font-semibold tracking-[0.22em] text-coral uppercase">
+            {eyebrow}
+          </div>
+        )}
+        <h1 className="font-display text-4xl leading-[0.95] font-bold md:text-5xl">{title}</h1>
+        {description && <p className="mt-2 max-w-2xl text-[15px] text-muted-foreground">{description}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+    </header>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  hint,
+  tone = "outline",
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "ink" | "coral" | "sun" | "outline";
+}) {
+  const tones = {
+    ink: "bg-ink text-ink-foreground",
+    coral: "bg-coral text-coral-foreground",
+    sun: "bg-sun text-ink",
+    outline: "bg-card border-2 border-ink",
+  } as const;
+  const hintTone = {
+    ink: "text-ink-foreground/65",
+    coral: "text-coral-foreground/80",
+    sun: "text-ink/70",
+    outline: "text-muted-foreground",
+  } as const;
+  return (
+    <div className={cn("rounded-3xl p-5 md:p-6", tones[tone])}>
+      <div className={cn("text-[11px] font-semibold tracking-[0.18em] uppercase", hintTone[tone])}>
+        {label}
+      </div>
+      <div className="font-display mt-2 text-3xl font-bold tnum">{value}</div>
+      {hint && <div className={cn("mt-1 text-sm font-medium", hintTone[tone])}>{hint}</div>}
+    </div>
+  );
+}
+
+function Panel({
+  title,
+  subtitle,
+  action,
+  children,
+  className,
+}: {
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("card-flat p-5 md:p-6", className)}>
+      {(title || subtitle || action) && (
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            {title && <h2 className="font-display text-xl font-bold md:text-2xl">{title}</h2>}
+            {subtitle && <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>}
+          </div>
+          {action}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+function Button({
+  variant = "ink",
+  className,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "ink" | "coral" | "turq" | "outline";
+}) {
+  const variants = {
+    ink: "bg-ink text-ink-foreground hover:bg-ink/85",
+    coral: "bg-coral text-coral-foreground hover:bg-coral/90",
+    turq: "bg-turq text-ink hover:bg-turq/85",
+    outline: "border-2 border-ink bg-transparent text-ink hover:bg-ink/5",
+  } as const;
+  return (
+    <button
+      {...props}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+        variants[variant],
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+type BadgeTone = "received" | "pending" | "paid" | "partial" | "posted" | "neutral" | "warn";
+
+const toneClass: Record<BadgeTone, string> = {
+  received: "bg-turq/30 text-ink",
+  paid: "bg-turq/30 text-ink",
+  pending: "bg-sun/45 text-ink",
+  partial: "bg-blue/20 text-ink",
+  posted: "bg-ink text-ink-foreground",
+  warn: "bg-rose/30 text-ink",
+  neutral: "bg-ink/10 text-ink",
+};
+
+function Badge({
+  tone = "neutral",
+  children,
+  className,
+}: {
+  tone?: BadgeTone;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
+        toneClass[tone],
+        className
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={
+        highlight
+          ? "rounded-2xl bg-ink px-4 py-3 text-ink-foreground"
+          : "rounded-2xl border-2 border-ink/12 bg-white dark:bg-gray-900 px-4 py-3"
+      }
+    >
+      <div className="text-[10px] font-semibold tracking-[0.18em] uppercase opacity-60">{label}</div>
+      <div className="font-display mt-1 text-xl font-bold tnum">{value}</div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-semibold tnum">{value}</dd>
+    </div>
+  );
+}
+
+// ─── Dashboard Component ──────────────────────────────────────
+
 export default function DashboardPage() {
   const { currentFirm } = useFirm();
-
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   // Period Filters
   const [periodPreset, setPeriodPreset] = useState<"all" | "today" | "month" | "fy" | "custom">("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     if (!currentFirm) return;
@@ -142,7 +328,6 @@ export default function DashboardPage() {
       setStartDate(firstDay);
       setEndDate(todayStr);
     } else if (preset === "fy") {
-      // Indian Financial Year (April 1 to March 31)
       const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
       setStartDate(`${year}-04-01`);
       setEndDate(`${year + 1}-03-31`);
@@ -158,11 +343,13 @@ export default function DashboardPage() {
     data?.aging?.bucket181Plus || 0
   );
 
+  const currentDateStr = mounted ? formatDate(new Date()) : "";
+
   return (
-    <div className="space-y-6 animate-fade-in pb-8">
+    <>
       {/* Header */}
       <PageHeader
-        eyebrow={`${formatDate(new Date().toISOString())} · ${currentFirm?.name || "Active Firm"}`}
+        eyebrow={`${currentDateStr} · ${currentFirm?.name || "Active Firm"}`}
         title={
           <>
             Books for <span className="text-coral">{currentFirm?.name || "Active Firm"}</span>
@@ -170,77 +357,82 @@ export default function DashboardPage() {
         }
         description="Management summary. All figures below belong only to the active firm."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <Link href="/daily-book">
-              <Button variant="ink" size="sm">
-                📒 Add trip
-              </Button>
+              <Button variant="ink">📒 Add trip</Button>
             </Link>
             <Link href="/billing/new">
-              <Button variant="coral" size="sm">
-                🧾 Create bill
-              </Button>
+              <Button variant="coral">🧾 Create bill</Button>
             </Link>
-            <Button variant="secondary" size="sm" onClick={fetchDashboardData} disabled={loading}>
-              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />
+            <button
+              type="button"
+              onClick={fetchDashboardData}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border-2 border-ink px-4 py-2.5 text-xs font-semibold text-ink hover:bg-ink/5 disabled:opacity-40"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
-            </Button>
+            </button>
           </div>
         }
       />
 
-      {/* Filter Toolbar */}
-      <div className="panel p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+      {/* Period Filter Toolbar */}
+      <div className="mb-6 card-flat p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-gray-500 font-semibold mr-1 flex items-center gap-1">
+          <span className="text-muted-foreground font-semibold mr-1 flex items-center gap-1">
             <Filter className="w-3.5 h-3.5" /> Period:
           </span>
           <button
+            type="button"
             onClick={() => handlePresetChange("all")}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-full font-semibold transition-colors ${
               periodPreset === "all"
-                ? "bg-coral text-coral-foreground font-semibold"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                ? "bg-coral text-coral-foreground"
+                : "bg-ink/8 text-ink hover:bg-ink/15"
             }`}
           >
             All Time
           </button>
           <button
+            type="button"
             onClick={() => handlePresetChange("today")}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-full font-semibold transition-colors ${
               periodPreset === "today"
-                ? "bg-coral text-coral-foreground font-semibold"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                ? "bg-coral text-coral-foreground"
+                : "bg-ink/8 text-ink hover:bg-ink/15"
             }`}
           >
             Today
           </button>
           <button
+            type="button"
             onClick={() => handlePresetChange("month")}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-full font-semibold transition-colors ${
               periodPreset === "month"
-                ? "bg-coral text-coral-foreground font-semibold"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                ? "bg-coral text-coral-foreground"
+                : "bg-ink/8 text-ink hover:bg-ink/15"
             }`}
           >
             This Month
           </button>
           <button
+            type="button"
             onClick={() => handlePresetChange("fy")}
-            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-full font-semibold transition-colors ${
               periodPreset === "fy"
-                ? "bg-coral text-coral-foreground font-semibold"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                ? "bg-coral text-coral-foreground"
+                : "bg-ink/8 text-ink hover:bg-ink/15"
             }`}
           >
             This FY (2026-27)
           </button>
         </div>
 
-        {/* Custom Range */}
+        {/* Custom Date Inputs */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <Calendar className="w-3.5 h-3.5 text-gray-400" />
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
             <input
               type="date"
               value={startDate}
@@ -248,9 +440,9 @@ export default function DashboardPage() {
                 setStartDate(e.target.value);
                 setPeriodPreset("custom");
               }}
-              className="px-2 py-1 border border-gray-300 rounded-lg text-xs dark:bg-gray-900 dark:border-gray-700"
+              className="px-2.5 py-1 rounded-xl border-2 border-ink/20 bg-white dark:bg-gray-900 text-xs font-medium focus:border-ink outline-none"
             />
-            <span className="text-gray-400">to</span>
+            <span className="text-muted-foreground">to</span>
             <input
               type="date"
               value={endDate}
@@ -258,94 +450,79 @@ export default function DashboardPage() {
                 setEndDate(e.target.value);
                 setPeriodPreset("custom");
               }}
-              className="px-2 py-1 border border-gray-300 rounded-lg text-xs dark:bg-gray-900 dark:border-gray-700"
+              className="px-2.5 py-1 rounded-xl border-2 border-ink/20 bg-white dark:bg-gray-900 text-xs font-medium focus:border-ink outline-none"
             />
           </div>
         </div>
       </div>
 
-      {/* Main Stats Summary Row (4 StatCards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
+      {/* KPI Section (4 KpiCards) */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
           tone="coral"
           label="Total Outstanding"
           value={formatCurrency(data?.outstanding?.totalOutstandingAmount || 0)}
           hint={`${data?.outstanding?.totalBills || 0} open bills`}
-          icon={TrendingUp}
-          iconColor="#ff5e3a"
         />
-        <StatCard
+        <KpiCard
           tone="ink"
           label="Net Billed Revenue"
           value={formatCurrency(data?.billing?.netPayableTotal || 0)}
           hint={`${data?.billing?.billCount || 0} bills posted`}
-          icon={FileText}
-          iconColor="#1a1d20"
         />
-        <StatCard
+        <KpiCard
           tone="sun"
           label="Payment Receipts"
           value={formatCurrency(data?.payments?.totalReceipts || 0)}
           hint={`${data?.payments?.paymentCount || 0} receipts`}
-          icon={CreditCard}
-          iconColor="#f59e0b"
         />
-        <StatCard
-          tone="turq"
+        <KpiCard
+          tone="outline"
           label="Daily Book Trips"
           value={String(data?.dailyBook?.totalEntries || 0)}
           hint={`${data?.dailyBook?.receivedCount || 0} received · ${data?.dailyBook?.pendingCount || 0} pending`}
-          icon={BookOpen}
-          iconColor="#45d4b2"
         />
       </div>
 
-      {/* Grid Row 2: Billing, Payments, and Aging Breakdowns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Breakdown Section (Billing, Payments, Aging) */}
+      <div className="mb-8 grid gap-6 lg:grid-cols-3">
         {/* Billing Breakdown */}
         <Panel title="Billing breakdown">
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
-              <span>Gross Freight</span>
-              <MoneyDisplay amount={data?.billing?.grossFreightTotal || 0} />
+          <dl className="space-y-3 text-sm">
+            <Row label="Gross Freight" value={formatCurrency(data?.billing?.grossFreightTotal || 0)} />
+            <Row
+              label="Less: Shortage Debit Notes"
+              value={`− ${formatCurrency(data?.billing?.shortageDebitTotal || 0)}`}
+            />
+            <Row
+              label="Less: TDS Withheld"
+              value={`− ${formatCurrency(data?.billing?.tdsTotal || 0)}`}
+            />
+            <div className="flex items-center justify-between border-t-2 border-dashed border-ink/20 pt-3">
+              <dt className="font-semibold">Net Bill Amount</dt>
+              <dd className="font-display text-xl font-bold tnum">
+                {formatCurrency(data?.billing?.netPayableTotal || 0)}
+              </dd>
             </div>
-            <div className="flex items-center justify-between text-red-600 dark:text-red-400">
-              <span>Less: Shortage Debit Notes</span>
-              <span>− <MoneyDisplay amount={data?.billing?.shortageDebitTotal || 0} className="text-red-600 dark:text-red-400" /></span>
-            </div>
-            <div className="flex items-center justify-between text-purple-600 dark:text-purple-400">
-              <span>Less: TDS Withheld</span>
-              <span>− <MoneyDisplay amount={data?.billing?.tdsTotal || 0} className="text-purple-600 dark:text-purple-400" /></span>
-            </div>
-            <div className="flex items-center justify-between border-t-2 border-dashed border-gray-200 dark:border-gray-800 pt-3">
-              <span className="font-semibold text-gray-900 dark:text-white">Net Bill Amount</span>
-              <MoneyDisplay amount={data?.billing?.netPayableTotal || 0} className="text-xl text-emerald-600 dark:text-emerald-400 font-bold" />
-            </div>
-          </div>
+          </dl>
         </Panel>
 
         {/* Payments Summary */}
         <Panel title="Payments">
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
-              <span>Total Received</span>
-              <MoneyDisplay amount={data?.payments?.totalReceipts || 0} />
-            </div>
-            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
-              <span>Against-Bill Payments</span>
-              <MoneyDisplay amount={data?.payments?.againstBillTotal || 0} />
-            </div>
-            <div className="flex items-center justify-between text-gray-600 dark:text-gray-400">
-              <span>Advance Payments</span>
-              <MoneyDisplay amount={data?.payments?.advanceTotal || 0} />
-            </div>
-            <div className="flex items-center justify-between rounded-2xl bg-sun-light dark:bg-amber-950/40 px-4 py-3">
-              <span className="text-xs font-semibold text-gray-800 dark:text-amber-200">Bill Settlements</span>
-              <span className="text-xs font-semibold tnum text-gray-900 dark:text-white">
+          <dl className="space-y-3 text-sm">
+            <Row label="Total Received" value={formatCurrency(data?.payments?.totalReceipts || 0)} />
+            <Row label="Against-Bill Payments" value={formatCurrency(data?.payments?.againstBillTotal || 0)} />
+            <Row label="Advance Payments" value={formatCurrency(data?.payments?.advanceTotal || 0)} />
+            <div className="flex items-center justify-between rounded-2xl bg-sun/35 px-4 py-3">
+              <dt className="text-sm font-semibold">Bill Settlements</dt>
+              <dd className="font-semibold tnum text-xs">
                 {data?.outstanding?.pendingCount || 0} Pending · {data?.outstanding?.partiallyPaidCount || 0} Partial · {data?.outstanding?.paidCount || 0} Paid
-              </span>
+              </dd>
             </div>
-          </div>
+            <p className="text-xs text-muted-foreground">
+              Production bill settlements and receipt allocations from active firm records.
+            </p>
+          </dl>
         </Panel>
 
         {/* Aging Analysis */}
@@ -354,11 +531,11 @@ export default function DashboardPage() {
           subtitle="Outstanding by age of bill"
           action={
             <Link href="/reports/aging" className="text-xs font-semibold text-coral hover:underline flex items-center gap-0.5">
-              Report <ArrowUpRight className="w-3 h-3" />
+              Report <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           }
         >
-          <div className="space-y-3 text-xs">
+          <div className="space-y-3">
             <AgingBar label="0 – 30 Days" amount={data?.aging?.bucket0to30 || 0} max={agingMax} />
             <AgingBar label="31 – 60 Days" amount={data?.aging?.bucket31to60 || 0} max={agingMax} />
             <AgingBar label="61 – 90 Days" amount={data?.aging?.bucket61to90 || 0} max={agingMax} />
@@ -368,8 +545,9 @@ export default function DashboardPage() {
         </Panel>
       </div>
 
-      {/* Driver Vouchers Operational Summary */}
+      {/* Driver Voucher Operational Summary */}
       <Panel
+        className="mb-8"
         title="Driver voucher summary"
         subtitle="Operational Voucher — Accounting Treatment Pending Confirmation"
         action={
@@ -378,24 +556,24 @@ export default function DashboardPage() {
           </Link>
         }
       >
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
-          <MiniStat label="Advance" value={data?.driverVouchers?.totalAdvance || 0} />
-          <MiniStat label="Cash" value={data?.driverVouchers?.totalCash || 0} />
-          <MiniStat label="Diesel" value={data?.driverVouchers?.totalDiesel || 0} />
-          <MiniStat label="A/c" value={data?.driverVouchers?.totalAc || 0} />
-          <MiniStat label="Total Operational" value={data?.driverVouchers?.totalExpense || 0} highlight />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <MiniStat label="Advance" value={formatCurrency(data?.driverVouchers?.totalAdvance || 0)} />
+          <MiniStat label="Cash" value={formatCurrency(data?.driverVouchers?.totalCash || 0)} />
+          <MiniStat label="Diesel" value={formatCurrency(data?.driverVouchers?.totalDiesel || 0)} />
+          <MiniStat label="A/c" value={formatCurrency(data?.driverVouchers?.totalAc || 0)} />
+          <MiniStat label="Total operational" value={formatCurrency(data?.driverVouchers?.totalExpense || 0)} highlight />
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+        <p className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
+          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 inline" />
           <span>
             These operational amounts are not posted to the accounting ledger. Status:{" "}
-            <Badge tone="pending">PENDING CONFIRMATION</Badge>
+            <span className="font-semibold text-ink">PENDING CONFIRMATION</span>.
           </span>
-        </div>
+        </p>
       </Panel>
 
-      {/* Grid Row 3: Recent Bills & Recent Payments */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Recent Activity Grid (Recent Bills & Recent Payments) */}
+      <div className="mb-8 grid gap-6 lg:grid-cols-2">
         {/* Recent Bills */}
         <Panel
           title="Recent Bills"
@@ -407,16 +585,18 @@ export default function DashboardPage() {
           }
         >
           {data?.billing?.recentBills && data.billing.recentBills.length > 0 ? (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
+            <div className="divide-y divide-ink/10 text-xs">
               {data.billing.recentBills.map((b) => (
                 <div key={b.id} className="py-2.5 flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">Bill #{b.billNumber}</p>
-                    <p className="text-gray-500 text-[11px]">{b.partyName} • {formatDate(b.billDate)}</p>
+                    <p className="font-semibold text-ink">Bill #{b.billNumber}</p>
+                    <p className="text-muted-foreground text-[11px]">{b.partyName} • {formatDate(b.billDate)}</p>
                   </div>
                   <div className="text-right">
-                    <MoneyDisplay amount={Number(b.netBillAmount || 0)} className="block font-bold text-gray-900 dark:text-white" />
-                    <Badge tone={b.status === "PAID" ? "posted" : b.status === "PARTIALLY_PAID" ? "pending" : "neutral"}>
+                    <span className="block font-bold text-ink font-display text-sm tnum">
+                      {formatCurrency(Number(b.netBillAmount || 0))}
+                    </span>
+                    <Badge tone={b.status === "PAID" ? "received" : b.status === "PARTIALLY_PAID" ? "pending" : "neutral"}>
                       {b.status}
                     </Badge>
                   </div>
@@ -424,7 +604,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="py-8 text-center text-gray-400 text-xs">
+            <div className="py-8 text-center text-muted-foreground text-xs">
               No bills recorded yet.
             </div>
           )}
@@ -441,29 +621,31 @@ export default function DashboardPage() {
           }
         >
           {data?.payments?.recentPayments && data.payments.recentPayments.length > 0 ? (
-            <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
+            <div className="divide-y divide-ink/10 text-xs">
               {data.payments.recentPayments.map((p) => (
                 <div key={p.id} className="py-2.5 flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">{p.partyName}</p>
-                    <p className="text-gray-500 text-[11px]">
+                    <p className="font-semibold text-ink">{p.partyName}</p>
+                    <p className="text-muted-foreground text-[11px]">
                       {formatDate(p.paymentDate)} • {p.paymentMode} ({p.paymentType})
                     </p>
                   </div>
                   <div className="text-right">
-                    <MoneyDisplay amount={Number(p.amount || 0)} className="font-bold text-emerald-600 dark:text-emerald-400" />
+                    <span className="block font-bold text-ink font-display text-sm tnum">
+                      {formatCurrency(Number(p.amount || 0))}
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="py-8 text-center text-gray-400 text-xs">
+            <div className="py-8 text-center text-muted-foreground text-xs">
               No payments recorded yet.
             </div>
           )}
         </Panel>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -481,42 +663,17 @@ function AgingBar({
   const percentage = Math.min(100, Math.max(0, (amount / max) * 100));
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between font-semibold">
-        <span className="text-gray-500">{label}</span>
-        <MoneyDisplay amount={amount} />
+      <div className="mb-1 flex items-center justify-between text-xs font-semibold">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="tnum">{formatCurrency(amount)}</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+      <div className="h-2.5 overflow-hidden rounded-full bg-ink/10">
         <div
           className={`h-full rounded-full transition-all duration-300 ${
-            isDanger ? "bg-red-500" : "bg-coral"
+            isDanger ? "bg-rose-500" : "bg-coral"
           }`}
           style={{ width: `${percentage}%` }}
         />
-      </div>
-    </div>
-  );
-}
-
-function MiniStat({
-  label,
-  value,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={
-        highlight
-          ? "rounded-2xl bg-ink p-3.5 text-white"
-          : "rounded-2xl border-2 border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3.5"
-      }
-    >
-      <div className="text-[10px] font-semibold tracking-wider uppercase opacity-70">{label}</div>
-      <div className="mt-1">
-        <MoneyDisplay amount={value} className={highlight ? "text-lg text-white" : "text-lg text-gray-900 dark:text-white"} />
       </div>
     </div>
   );
