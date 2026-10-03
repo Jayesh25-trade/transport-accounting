@@ -1,6 +1,6 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import { type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { trucks, locations } from "../db/schema";
+import { trucks, locations, dailyEntries } from "../db/schema";
 import {
   truckInputSchema,
   locationInputSchema,
@@ -9,7 +9,7 @@ import {
 } from "../validators/truck-location";
 import { verifyTruckInFirm, verifyLocationInFirm } from "./firm.service";
 import { recordAuditLog } from "./audit.service";
-import { EntityNotFoundError } from "../lib/errors";
+import { EntityNotFoundError, DomainValidationError } from "../lib/errors";
 
 // ==========================================
 // TRUCK SERVICES
@@ -124,6 +124,67 @@ export async function getLocationById(
     .limit(1);
   if (res.length === 0) throw new EntityNotFoundError("Location", locationId);
   return res[0];
+}
+
+export async function deleteTruck(db: NodePgDatabase<any>, truckId: string, firmId: string) {
+  await verifyTruckInFirm(db, truckId, firmId);
+
+  const entriesRes = await db
+    .select({ count: sql`count(*)` })
+    .from(dailyEntries)
+    .where(and(eq(dailyEntries.firmId, firmId), eq(dailyEntries.truckId, truckId)));
+
+  if (Number(entriesRes[0]?.count || 0) > 0) {
+    throw new DomainValidationError("This truck cannot be deleted because it is linked to existing transactions. You can deactivate it instead.");
+  }
+
+  const [deleted] = await db
+    .delete(trucks)
+    .where(and(eq(trucks.id, truckId), eq(trucks.firmId, firmId)))
+    .returning();
+
+  await recordAuditLog(db, {
+    firmId,
+    action: "DELETE",
+    entityName: "trucks",
+    entityId: truckId,
+    oldValues: deleted,
+  });
+
+  return deleted;
+}
+
+export async function deleteLocation(db: NodePgDatabase<any>, locationId: string, firmId: string) {
+  await verifyLocationInFirm(db, locationId, firmId);
+
+  const entriesRes = await db
+    .select({ count: sql`count(*)` })
+    .from(dailyEntries)
+    .where(
+      and(
+        eq(dailyEntries.firmId, firmId),
+        or(eq(dailyEntries.fromLocationId, locationId), eq(dailyEntries.toLocationId, locationId))
+      )
+    );
+
+  if (Number(entriesRes[0]?.count || 0) > 0) {
+    throw new DomainValidationError("This location cannot be deleted because it is linked to existing transactions. You can deactivate it instead.");
+  }
+
+  const [deleted] = await db
+    .delete(locations)
+    .where(and(eq(locations.id, locationId), eq(locations.firmId, firmId)))
+    .returning();
+
+  await recordAuditLog(db, {
+    firmId,
+    action: "DELETE",
+    entityName: "locations",
+    entityId: locationId,
+    oldValues: deleted,
+  });
+
+  return deleted;
 }
 
 export async function listLocations(db: NodePgDatabase<any>, firmId: string) {

@@ -47,14 +47,14 @@ function LoginForm() {
   return (
     <div className="w-full max-w-md space-y-8 bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
       <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600/20 text-blue-400 mb-2 border border-blue-500/30">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#E05638]/20 text-[#E05638] mb-2 border border-[#E05638]/30">
           <Lock className="w-6 h-6" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight text-white">
-          Transport Accounting System
+          DEEPRAJ TRANSPORT BOOKS
         </h1>
         <p className="text-sm text-slate-400">
-          Sign in to access your secure firm account
+          Sign in to access your transport books account
         </p>
       </div>
 
@@ -78,7 +78,7 @@ function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@transport.com"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#E05638] focus:ring-1 focus:ring-[#E05638] transition-all"
             />
           </div>
         </div>
@@ -95,7 +95,7 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••••••"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-[#E05638] focus:ring-1 focus:ring-[#E05638] transition-all"
             />
           </div>
         </div>
@@ -103,7 +103,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
+          className="w-full bg-[#E05638] hover:bg-[#d04628] active:bg-[#c03618] text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-[#E05638]/20 flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {loading ? (
             <span>Authenticating...</span>
@@ -117,7 +117,7 @@ function LoginForm() {
       </form>
 
       <div className="text-center text-xs text-slate-500 pt-4 border-t border-slate-800">
-        Transport Management & Accounting Platform • Multi-Tenancy Secured
+        DEEPRAJ TRANSPORT BOOKS • Transport Accounting Platform
       </div>
     </div>
   );

@@ -55,8 +55,9 @@ export function calculateShortage(input: ShortageCalculationInput): ShortageCalc
   if (input.allowanceType === "PERCENTAGE") {
     allowanceQty = WeightMath.round((nWeight * allowanceVal) / 100);
   } else if (input.allowanceType === "FIXED_KG") {
-    // Allowance value is provided in MT (e.g. 0.500 MT = 500 KG)
-    allowanceQty = WeightMath.round(allowanceVal);
+    // Allowance value entered in KG (e.g. 300 KG -> 0.300 MT) or MT (e.g. 0.3 MT)
+    const allowanceValInMt = allowanceVal >= 10 ? allowanceVal / 1000 : allowanceVal;
+    allowanceQty = WeightMath.round(allowanceValInMt);
   }
 
   let applicableShortageQty = 0;

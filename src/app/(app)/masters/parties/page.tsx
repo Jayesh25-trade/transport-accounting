@@ -213,7 +213,7 @@ export default function PartiesPage() {
   const { data: parties, loading, error, refresh } = useMasterList<Party>({
     endpoint: "/api/parties",
   });
-  const { submitting, submitError, create, update } = useMasterMutation("/api/parties");
+  const { submitting, submitError, create, update, remove } = useMasterMutation("/api/parties");
 
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<
@@ -221,6 +221,7 @@ export default function PartiesPage() {
     | { mode: "edit"; party: Party }
     | null
   >(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Client-side search filter
   const filtered = useMemo(() => {
@@ -250,6 +251,22 @@ export default function PartiesPage() {
       setModal(null);
       refresh();
     }
+  }
+
+  async function handleDelete(id: string, name: string) {
+    setDeleteError(null);
+    if (!confirm(`Are you sure you want to delete party "${name}"?\nThis action cannot be undone.`)) return;
+    const ok = await remove(id);
+    if (ok) {
+      refresh();
+    } else {
+      setDeleteError(submitError || `Cannot delete "${name}". It may be linked to existing transactions.`);
+    }
+  }
+
+  async function handleToggleActive(p: Party) {
+    const ok = await update(p.id, { ...p, isActive: !p.isActive });
+    if (ok) refresh();
   }
 
   const columns: Column<Party>[] = [
@@ -299,26 +316,42 @@ export default function PartiesPage() {
       key: "isActive",
       label: "Status",
       render: (p) => (
-        <Badge variant={p.isActive ? "success" : "neutral"}>
-          {p.isActive ? "Active" : "Inactive"}
-        </Badge>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleActive(p);
+          }}
+          title={p.isActive ? "Click to deactivate" : "Click to activate"}
+        >
+          <Badge variant={p.isActive ? "success" : "neutral"}>
+            {p.isActive ? "Active" : "Inactive"}
+          </Badge>
+        </button>
       ),
     },
     {
       key: "actions",
-      label: "",
+      label: "Actions",
+      align: "right",
       render: (p) => (
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            setModal({ mode: "edit", party: p });
-          }}
-          id={`party-edit-${p.id}`}
-          title="Edit party"
-        >
-          <Pencil size={13} />
-        </button>
+        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setModal({ mode: "edit", party: p })}
+            id={`party-edit-${p.id}`}
+            title="Edit party"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+            onClick={() => handleDelete(p.id, p.name)}
+            id={`party-delete-${p.id}`}
+            title="Delete party (if unused)"
+          >
+            <span className="text-xs font-bold">Delete</span>
+          </button>
+        </div>
       ),
     },
   ];
@@ -329,11 +362,11 @@ export default function PartiesPage() {
     <div className="animate-fade-in">
       <PageHeader
         title="Parties"
-        subtitle="Billing & payment customers — strictly isolated per firm"
+        subtitle="Customer party directory."
         breadcrumbs={[{ label: "Masters" }, { label: "Parties" }]}
         actions={
           <Button
-            variant="primary"
+            variant="coral"
             size="sm"
             icon={Plus}
             onClick={() => setModal({ mode: "create" })}
@@ -346,10 +379,10 @@ export default function PartiesPage() {
       />
 
       {/* Error banner */}
-      {error && (
+      {(error || deleteError) && (
         <div className="card mb-4 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10">
           <p className="text-sm text-red-600 dark:text-red-400">
-            {error}
+            {error || deleteError}
           </p>
         </div>
       )}
@@ -363,7 +396,7 @@ export default function PartiesPage() {
             placeholder="Search by name, phone, PAN, GSTIN…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input pl-8"
+            className="form-input search-input"
             id="parties-search"
           />
         </div>

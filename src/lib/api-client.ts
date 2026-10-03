@@ -76,6 +76,10 @@ export function useApiClient() {
           method: "PUT",
           body: JSON.stringify(body),
         }),
+      del: <T>(url: string) =>
+        apiFetch<T>(url, firmUuid, {
+          method: "DELETE",
+        }),
       firmUuid,
       ready,
     }),

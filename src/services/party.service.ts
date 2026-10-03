@@ -1,10 +1,10 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { parties, companies, customerRules } from "../db/schema";
+import { parties, companies, customerRules, dailyEntries, trips, bills, payments, ledgerTransactions } from "../db/schema";
 import { partyInputSchema, companyInputSchema, customerRuleInputSchema, type PartyInput, type CompanyInput, type CustomerRuleInput } from "../validators/party-company";
 import { verifyPartyInFirm, verifyCompanyInFirm } from "./firm.service";
 import { recordAuditLog } from "./audit.service";
-import { EntityNotFoundError } from "../lib/errors";
+import { EntityNotFoundError, DomainValidationError } from "../lib/errors";
 
 // ==========================================
 // PARTY SERVICES
@@ -151,6 +151,78 @@ export async function upsertCustomerRule(db: NodePgDatabase<any>, rawInput: Cust
   }
 }
 
+export async function deleteParty(db: NodePgDatabase<any>, partyId: string, firmId: string) {
+  await verifyPartyInFirm(db, partyId, firmId);
+
+  // Check references in financial / operational tables
+  const [entriesRes, tripsRes, billsRes, pmtsRes, ledgerRes] = await Promise.all([
+    db.select({ count: sql`count(*)` }).from(dailyEntries).where(and(eq(dailyEntries.firmId, firmId), eq(dailyEntries.partyId, partyId))),
+    db.select({ count: sql`count(*)` }).from(trips).where(and(eq(trips.firmId, firmId), eq(trips.partyId, partyId))),
+    db.select({ count: sql`count(*)` }).from(bills).where(and(eq(bills.firmId, firmId), eq(bills.partyId, partyId))),
+    db.select({ count: sql`count(*)` }).from(payments).where(and(eq(payments.firmId, firmId), eq(payments.partyId, partyId))),
+    db.select({ count: sql`count(*)` }).from(ledgerTransactions).where(and(eq(ledgerTransactions.firmId, firmId), eq(ledgerTransactions.partyId, partyId))),
+  ]);
+
+  const totalRefs =
+    Number(entriesRes[0]?.count || 0) +
+    Number(tripsRes[0]?.count || 0) +
+    Number(billsRes[0]?.count || 0) +
+    Number(pmtsRes[0]?.count || 0) +
+    Number(ledgerRes[0]?.count || 0);
+
+  if (totalRefs > 0) {
+    throw new DomainValidationError("This party cannot be deleted because it is linked to existing transactions. You can deactivate it instead.");
+  }
+
+  // Delete linked customer rules if any
+  await db.delete(customerRules).where(and(eq(customerRules.firmId, firmId), eq(customerRules.partyId, partyId)));
+
+  const [deleted] = await db
+    .delete(parties)
+    .where(and(eq(parties.id, partyId), eq(parties.firmId, firmId)))
+    .returning();
+
+  await recordAuditLog(db, {
+    firmId,
+    action: "DELETE",
+    entityName: "parties",
+    entityId: partyId,
+    oldValues: deleted,
+  });
+
+  return deleted;
+}
+
+export async function deleteCompany(db: NodePgDatabase<any>, companyId: string, firmId: string) {
+  await verifyCompanyInFirm(db, companyId, firmId);
+
+  const entriesRes = await db
+    .select({ count: sql`count(*)` })
+    .from(dailyEntries)
+    .where(and(eq(dailyEntries.firmId, firmId), eq(dailyEntries.companyId, companyId)));
+
+  const totalRefs = Number(entriesRes[0]?.count || 0);
+
+  if (totalRefs > 0) {
+    throw new DomainValidationError("This company cannot be deleted because it is linked to existing transactions. You can deactivate it instead.");
+  }
+
+  const [deleted] = await db
+    .delete(companies)
+    .where(and(eq(companies.id, companyId), eq(companies.firmId, firmId)))
+    .returning();
+
+  await recordAuditLog(db, {
+    firmId,
+    action: "DELETE",
+    entityName: "companies",
+    entityId: companyId,
+    oldValues: deleted,
+  });
+
+  return deleted;
+}
+
 export async function getCustomerRuleByParty(db: NodePgDatabase<any>, partyId: string, firmId: string) {
   await verifyPartyInFirm(db, partyId, firmId);
   const res = await db
@@ -158,5 +230,7 @@ export async function getCustomerRuleByParty(db: NodePgDatabase<any>, partyId: s
     .from(customerRules)
     .where(and(eq(customerRules.firmId, firmId), eq(customerRules.partyId, partyId)))
     .limit(1);
-  return res.length > 0 ? res[0] : null;
+  return res[0] || null;
 }
+
+

@@ -137,7 +137,7 @@ export default function TrucksPage() {
   const { data: trucksData, loading, error, refresh } = useMasterList<TruckRecord>({
     endpoint: "/api/trucks",
   });
-  const { submitting, submitError, create, update } = useMasterMutation("/api/trucks");
+  const { submitting, submitError, create, update, remove } = useMasterMutation("/api/trucks");
 
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<
@@ -145,6 +145,7 @@ export default function TrucksPage() {
     | { mode: "edit"; truck: TruckRecord }
     | null
   >(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return trucksData;
@@ -165,6 +166,22 @@ export default function TrucksPage() {
   async function handleUpdate(id: string, data: TruckFormData) {
     const ok = await update(id, data);
     if (ok) { setModal(null); refresh(); }
+  }
+
+  async function handleDelete(id: string, number: string) {
+    setDeleteError(null);
+    if (!confirm(`Are you sure you want to delete truck "${number}"?\nThis action cannot be undone.`)) return;
+    const ok = await remove(id);
+    if (ok) {
+      refresh();
+    } else {
+      setDeleteError(submitError || `Cannot delete truck "${number}". It may be linked to existing transactions.`);
+    }
+  }
+
+  async function handleToggleActive(t: TruckRecord) {
+    const ok = await update(t.id, { ...t, isActive: !t.isActive });
+    if (ok) refresh();
   }
 
   const columns: Column<TruckRecord>[] = [
@@ -198,22 +215,42 @@ export default function TrucksPage() {
       key: "isActive",
       label: "Status",
       render: (t) => (
-        <Badge variant={t.isActive ? "success" : "neutral"}>
-          {t.isActive ? "Active" : "Inactive"}
-        </Badge>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleActive(t);
+          }}
+          title={t.isActive ? "Click to deactivate" : "Click to activate"}
+        >
+          <Badge variant={t.isActive ? "success" : "neutral"}>
+            {t.isActive ? "Active" : "Inactive"}
+          </Badge>
+        </button>
       ),
     },
     {
       key: "actions",
-      label: "",
+      label: "Actions",
+      align: "right",
       render: (t) => (
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={(e) => { e.stopPropagation(); setModal({ mode: "edit", truck: t }); }}
-          id={`truck-edit-${t.id}`}
-        >
-          <Pencil size={13} />
-        </button>
+        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setModal({ mode: "edit", truck: t })}
+            id={`truck-edit-${t.id}`}
+            title="Edit truck"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            className="btn btn-ghost btn-sm text-red-600 hover:bg-red-50"
+            onClick={() => handleDelete(t.id, t.truckNumber)}
+            id={`truck-delete-${t.id}`}
+            title="Delete truck (if unused)"
+          >
+            <span className="text-xs font-bold">Delete</span>
+          </button>
+        </div>
       ),
     },
   ];
@@ -224,11 +261,11 @@ export default function TrucksPage() {
     <div className="animate-fade-in">
       <PageHeader
         title="Trucks"
-        subtitle="Vehicle registry — firm-scoped"
+        subtitle="Truck vehicle registry."
         breadcrumbs={[{ label: "Masters" }, { label: "Trucks" }]}
         actions={
           <Button
-            variant="primary"
+            variant="coral"
             size="sm"
             icon={Plus}
             onClick={() => setModal({ mode: "create" })}
@@ -240,9 +277,9 @@ export default function TrucksPage() {
         }
       />
 
-      {error && (
+      {(error || deleteError) && (
         <div className="card mb-4 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{error || deleteError}</p>
         </div>
       )}
 
@@ -254,7 +291,7 @@ export default function TrucksPage() {
             placeholder="Search by truck number, owner…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input pl-8"
+            className="form-input search-input"
             id="trucks-search"
           />
         </div>

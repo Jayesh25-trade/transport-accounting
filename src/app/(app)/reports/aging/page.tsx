@@ -131,7 +131,7 @@ export default function AgingReportPage() {
       {/* Header */}
       <PageHeader
         title="Aging Analysis Report"
-        subtitle="Categorised outstanding bill balances by age relative to As-Of Date"
+        subtitle="Customer outstanding balances grouped by age."
         breadcrumbs={[{ label: "Reports" }, { label: "Aging Analysis" }]}
         actions={
           <div className="flex items-center gap-2 print:hidden">
@@ -279,7 +279,7 @@ export default function AgingReportPage() {
               iconColor="#ef4444"
             />
             <StatCard
-              label="Total Reconciled"
+              label="Total outstanding"
               value={formatCurrency(data?.summary.totalOutstanding ?? 0)}
               iconColor="#8b5cf6"
               className="bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-200 dark:border-indigo-800"

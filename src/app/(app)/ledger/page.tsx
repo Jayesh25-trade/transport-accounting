@@ -301,6 +301,28 @@ export default function LedgerPage() {
         title="Customer Ledger Statement"
         subtitle={`Official accounting ledger for ${currentFirm?.name || "Active Firm"}`}
         breadcrumbs={[{ label: "Ledger", href: "/ledger" }]}
+        actions={
+          selectedPartyId ? (
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/ledger/pdf?firmId=${currentFirm?.id || ""}&partyId=${selectedPartyId}&dateFrom=${dateFrom || ""}&dateTo=${dateTo || ""}&voucherType=${voucherTypeFilter !== "ALL" ? voucherTypeFilter : ""}&entryType=${entryTypeFilter !== "ALL" ? entryTypeFilter : ""}&search=${encodeURIComponent(searchQuery)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-secondary text-xs"
+                id="ledger-print-pdf"
+              >
+                Print PDF
+              </a>
+              <a
+                href={`/api/ledger/pdf?firmId=${currentFirm?.id || ""}&partyId=${selectedPartyId}&dateFrom=${dateFrom || ""}&dateTo=${dateTo || ""}&voucherType=${voucherTypeFilter !== "ALL" ? voucherTypeFilter : ""}&entryType=${entryTypeFilter !== "ALL" ? entryTypeFilter : ""}&search=${encodeURIComponent(searchQuery)}&download=true`}
+                className="btn btn-primary text-xs"
+                id="ledger-download-pdf"
+              >
+                Export PDF
+              </a>
+            </div>
+          ) : undefined
+        }
       />
 
       {/* Error Alert */}
@@ -644,9 +666,9 @@ export default function LedgerPage() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#7A7F85] block">Source Entity ID:</span>
+                  <span className="text-[#7A7F85] block">Reference Tag:</span>
                   <span className="font-semibold text-[#1A1D20]">
-                    {viewTx.sourceEntityId || "N/A"}
+                    {viewTx.sourceEntityId ? `REF-${viewTx.sourceEntityId.slice(0, 8).toUpperCase()}` : "N/A"}
                   </span>
                 </div>
               </div>

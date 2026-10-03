@@ -125,7 +125,7 @@ export default function DriverVouchersPage() {
       {/* Header */}
       <PageHeader
         title="Driver Vouchers"
-        subtitle="Operational trip advances & driver expense vouchers (Accounting Status: PENDING CONFIRMATION)"
+        subtitle="Advances and expense vouchers raised from Daily Book trips."
         actions={
           <button
             type="button"
@@ -150,8 +150,8 @@ export default function DriverVouchersPage() {
       )}
 
       {/* Notice Banner */}
-      <div className="bg-[#FFF4E5] border border-[#ED6C02]/30 rounded-xl p-4 text-xs text-[#92400E]">
-        <span className="font-bold text-[#78350F]">Read-Only Accounting Status (Pending Confirmation):</span> Driver Vouchers are automatically synchronized 1-to-1 from Daily Book entries. In accordance with client specifications, accounting Dr/Cr treatment is pending confirmation and no ledger postings or payment entries have been generated.
+      <div className="bg-[#FAF8F5] border border-[#D8D5CE] rounded-xl p-4 text-xs text-[#5F6368]">
+        These vouchers come from your Daily Book trips. They are for reference and are not yet added to your accounts.
       </div>
 
       {/* Metrics Summary Cards */}
@@ -181,9 +181,9 @@ export default function DriverVouchersPage() {
           <p className="text-sm font-bold text-[#1A1D20] font-mono-nums mt-1">{formatCurrency(metrics.totalAc)}</p>
         </div>
 
-        <div className="bg-[#FAF8F5] border border-[#E05638]/40 rounded-xl p-3.5 shadow-xs">
-          <p className="text-[11px] font-bold text-[#E05638] uppercase tracking-wider">Total Operational</p>
-          <p className="text-sm font-bold text-[#E05638] font-mono-nums mt-1">{formatCurrency(metrics.totalExpense)}</p>
+        <div className="bg-[#FAF8F5] border border-[#D8D5CE] rounded-xl p-3.5 shadow-xs">
+          <p className="text-[11px] font-bold text-[#7A7F85] uppercase tracking-wider">Total Operational</p>
+          <p className="text-sm font-bold text-[#1A1D20] font-mono-nums mt-1">{formatCurrency(metrics.totalExpense)}</p>
         </div>
       </div>
 
@@ -198,7 +198,7 @@ export default function DriverVouchersPage() {
               placeholder="Search truck, route, remarks..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="form-input pl-9 text-xs"
+              className="form-input search-input text-xs"
             />
           </div>
 
@@ -251,7 +251,7 @@ export default function DriverVouchersPage() {
           <table className="w-full text-xs text-left text-[#1A1D20] border-collapse">
             <thead className="bg-[#FAF8F5] text-[#5F6368] font-semibold border-b border-[#D8D5CE] uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="px-4 py-3 text-center">Daily Entry #</th>
+                <th className="px-4 py-3 text-center">Trip SR No.</th>
                 <th className="px-4 py-3">Voucher Date</th>
                 <th className="px-4 py-3">Truck No</th>
                 <th className="px-4 py-3">Route (From → To)</th>
@@ -260,7 +260,7 @@ export default function DriverVouchersPage() {
                 <th className="px-4 py-3 text-right">Diesel (₹)</th>
                 <th className="px-4 py-3 text-right">A/c (₹)</th>
                 <th className="px-4 py-3 text-right font-bold">Total (₹)</th>
-                <th className="px-4 py-3 text-center">Accounting Status</th>
+                <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-center">Actions</th>
               </tr>
             </thead>
@@ -315,7 +315,7 @@ export default function DriverVouchersPage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge variant="warning">
-                          PENDING CONFIRMATION
+                          Awaiting confirmation
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center">

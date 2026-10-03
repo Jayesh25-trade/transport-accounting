@@ -1,0 +1,1 @@
+ALTER TYPE "public"."freight_basis" ADD VALUE IF NOT EXISTS 'AUTO_SHORTAGE_BASED';

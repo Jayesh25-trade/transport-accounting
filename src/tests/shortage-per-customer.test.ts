@@ -191,7 +191,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0001",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 1000,
         partyId: partyRoha.id,
         isReceived: true,
       });
@@ -203,8 +203,8 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         tripIds: [d1.trip!.id],
       });
 
-      // Freight: 39T × ₹500 = ₹19,500
-      assert.equal(Number(bill.subtotalFreight), 19500, "T1: subtotalFreight");
+      // Freight: 39T × ₹1000 = ₹39,000
+      assert.equal(Number(bill.subtotalFreight), 39000, "T1: subtotalFreight");
 
       // Verify bill_item stored the correct per-trip shortage
       const items = await db.select().from(billItems).where(eq(billItems.billId, bill.id));
@@ -232,7 +232,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0002",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 1000,
         partyId: partyRoha.id,
         isReceived: true,
       });
@@ -241,7 +241,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0003",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 1200,
         partyId: partySatra.id,
         isReceived: true,
       });
@@ -253,8 +253,8 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         tripIds: [dRoha.trip!.id, dSatra.trip!.id],
       });
 
-      // Each trip: freight 39T × ₹500 = ₹19,500 × 2 = ₹39,000 total
-      assert.equal(Number(bill.subtotalFreight), 39000, "T2: subtotalFreight");
+      // Trip A: 39T × ₹1000 = ₹39,000, Trip B: 39T × ₹1200 = ₹46,800 → ₹85,800 total
+      assert.equal(Number(bill.subtotalFreight), 85800, "T2: subtotalFreight");
 
       const items = await db.select().from(billItems).where(eq(billItems.billId, bill.id));
       assert.equal(items.length, 2, "T2: two bill items");
@@ -291,7 +291,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0010",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 1000,
         partyId: partyRoha.id,
         isReceived: true,
       });
@@ -300,7 +300,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0011",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 800,
         partyId: partyFixKg.id,
         isReceived: true,
       });
@@ -342,7 +342,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0020",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 1000,
         partyId: partyRoha.id,
         isReceived: true,
       });
@@ -375,7 +375,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0030",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 900,
         partyId: partyFull.id,
         isReceived: true,
       });
@@ -405,7 +405,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0040",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 1000,
         partyId: partyRoha.id,
         isReceived: true,
       });
@@ -474,7 +474,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0060",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 1000,
         partyId: partyRoha.id,
         isReceived: true,
       });
@@ -483,7 +483,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0061",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 800,
         partyId: partyFixKg.id,
         isReceived: true,
       });
@@ -492,7 +492,7 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         entryDate: "2026-09-22",
         truckNumberRaw: "MH01AA0062",
         nWeight: 40, rWeight: 39,
-        customerRate: 500,
+        customerRate: 900,
         partyId: partyFull.id,
         isReceived: true,
       });

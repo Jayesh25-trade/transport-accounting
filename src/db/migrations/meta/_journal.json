@@ -29,6 +29,13 @@
       "when": 1790136685260,
       "tag": "0003_faithful_wendell_rand",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790911839916,
+      "tag": "0004_add_driver_voucher_deduction",
+      "breakpoints": true
     }
   ]
 }

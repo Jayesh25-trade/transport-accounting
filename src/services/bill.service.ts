@@ -1,6 +1,6 @@
 import { sql, eq, and, inArray } from "drizzle-orm";
 import { type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { bills, billItems, tdsEntries, debitNotes, trips, dailyEntries, customerRules, ledgerTransactions, parties } from "../db/schema";
+import { bills, billItems, tdsEntries, debitNotes, trips, dailyEntries, driverVouchers, customerRules, ledgerTransactions, parties, bankAccounts, firmBillSettings } from "../db/schema";
 import { billCreateInputSchema, billEditInputSchema, type BillCreateInput, type BillEditInput } from "../validators/bill";
 import { verifyPartyInFirm, verifyBillInFirm } from "./firm.service";
 import { getNextBillNumberForFirm } from "./sequence.service";
@@ -30,6 +30,7 @@ export async function createBill(
         partyId: trips.partyId,
         isReceived: trips.isReceived,
         isBilled: trips.isBilled,
+        dailyEntryId: trips.dailyEntryId,
         entryDate: dailyEntries.entryDate,
         truckNumberRaw: dailyEntries.truckNumberRaw,
         lrNumber: dailyEntries.lrNumber,
@@ -49,8 +50,6 @@ export async function createBill(
     }
 
     // Validate trips: must belong to the firm, be received, and not already billed.
-    // NOTE: Trips from DIFFERENT parties may coexist in one bill (customer-wise shortage).
-    // Firm isolation is enforced at DB level via composite FKs on trips.firm_id.
     for (const trip of tripRows) {
       if (trip.firmId !== input.firmId) {
         throw new FirmIsolationError(`Trip '${trip.tripId}' does not belong to firm '${input.firmId}'`);
@@ -64,8 +63,19 @@ export async function createBill(
     }
 
     // 3. Fetch customer rules for ALL distinct parties appearing in these trips.
-    // Rules are keyed by partyId for O(1) per-trip lookup.
     const distinctPartyIds = [...new Set(tripRows.map((t) => t.partyId).filter(Boolean) as string[])];
+
+    // Reject mixed-party trip selection
+    if (distinctPartyIds.length > 1) {
+      throw new DomainValidationError("Selected trips belong to multiple billing parties. Please create separate bills.");
+    }
+
+    // Single-party enforcement: effectivePartyId is the trip's partyId when present, otherwise input.partyId
+    const effectivePartyId = distinctPartyIds.length === 1 ? distinctPartyIds[0] : input.partyId;
+
+    // Firm isolation check for effective party
+    await verifyPartyInFirm(tx, effectivePartyId, input.firmId);
+
     const rulesRes = distinctPartyIds.length > 0
       ? await tx
           .select()
@@ -80,7 +90,7 @@ export async function createBill(
     const billPartyRuleRes = await tx
       .select()
       .from(customerRules)
-      .where(and(eq(customerRules.firmId, input.firmId), eq(customerRules.partyId, input.partyId)))
+      .where(and(eq(customerRules.firmId, input.firmId), eq(customerRules.partyId, effectivePartyId)))
       .limit(1);
     const billPartyRule = billPartyRuleRes.length > 0 ? billPartyRuleRes[0] : null;
 
@@ -91,14 +101,7 @@ export async function createBill(
       const tripRule = (trip.partyId ? rulesByPartyId.get(trip.partyId) : null) ?? billPartyRule ?? null;
 
       const rateToUse = Number(trip.customerRate || trip.rate || 0);
-      const freightBasis = tripRule?.freightBasis || "R_WEIGHT";
-
-      const freightRes = calculateFreight({
-        freightBasis,
-        rate: rateToUse,
-        nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
-        rWeight: trip.rWeight ? Number(trip.rWeight) : 0,
-      });
+      const freightBasis = tripRule?.freightBasis || "AUTO_SHORTAGE_BASED";
 
       const shortageRes = calculateShortage({
         nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
@@ -107,7 +110,16 @@ export async function createBill(
         allowanceType: tripRule?.shortageAllowanceType,
         allowanceValue: tripRule?.shortageAllowanceValue ? Number(tripRule.shortageAllowanceValue) : 0,
         shortageRuleType: tripRule?.shortageRuleType,
-        materialRatePerTon: tripRule?.materialRatePerTon ? Number(tripRule.materialRatePerTon) : 0,
+        materialRatePerTon: rateToUse,
+      });
+
+      const freightRes = calculateFreight({
+        freightBasis,
+        rate: rateToUse,
+        nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
+        rWeight: trip.rWeight ? Number(trip.rWeight) : 0,
+        fixedFreightAmount: rateToUse,
+        applicableShortageDebit: shortageRes.shortageDebitAmount,
       });
 
       return {
@@ -128,7 +140,7 @@ export async function createBill(
         shortageAllowanceType: tripRule?.shortageAllowanceType || null,
         shortageRuleType: tripRule?.shortageRuleType || null,
         shortageQtyApplicable: shortageRes.applicableShortageQty,
-        shortageMaterialRate: tripRule?.materialRatePerTon ? Number(tripRule.materialRatePerTon) : 0,
+        shortageMaterialRate: rateToUse,
         shortageDebitAmount: shortageRes.shortageDebitAmount,
       };
     });
@@ -136,38 +148,143 @@ export async function createBill(
     // 5. Calculate Subtotal Freight
     const subtotalFreight = preparedItems.reduce((sum, item) => sum + item.freight, 0);
 
-    // 6. Calculate TDS — TDS is still resolved at bill level using the billing party's rule.
+    // 6. Calculate Total Shortage Debit
+    const totalShortageDebit = preparedItems.reduce((sum, item) => sum + item.shortageDebitAmount, 0);
+
+    // 7. Calculate Amount After Shortage = Gross Freight - Total Shortage Debit
+    const amountAfterShortage = Math.max(0, subtotalFreight - totalShortageDebit);
+
+    // 8. Calculate TDS on Amount After Shortage
     const tdsSection = input.appliedTdsSection || billPartyRule?.tdsSection || "94C";
     const tdsPercentage = input.appliedTdsPercentage ?? (billPartyRule?.tdsPercentage ? Number(billPartyRule.tdsPercentage) : 0);
     const tdsApplicable = tdsPercentage > 0;
 
     const tdsRes = calculateTds({
-      grossBillAmount: subtotalFreight,
+      grossBillAmount: amountAfterShortage,
       tdsApplicable,
       tdsPercentage,
       tdsSection,
     });
 
-    // 7. Calculate Total Shortage Debit
-    const totalShortageDebit = preparedItems.reduce((sum, item) => sum + item.shortageDebitAmount, 0);
+    // 8B. CONFIRMED BUSINESS RULE: Fetch Driver Voucher totals for all trips in this bill.
+    //     DV (advance + cash + diesel + ac) is deducted from Net Payable.
+    //     We sum them here and snapshot on the bill — same pattern as tds_amount.
+    const tripDailyEntryIds = tripRows.map((t) => t.dailyEntryId).filter(Boolean) as string[];
+    const dvRows = tripDailyEntryIds.length > 0
+      ? await tx
+          .select({
+            advance: driverVouchers.advance,
+            cash: driverVouchers.cash,
+            diesel: driverVouchers.diesel,
+            ac: driverVouchers.ac,
+          })
+          .from(driverVouchers)
+          .where(inArray(driverVouchers.dailyEntryId, tripDailyEntryIds))
+      : [];
+    const driverVoucherTotal = dvRows.reduce(
+      (sum, dv) =>
+        sum +
+        Number(dv.advance || 0) +
+        Number(dv.cash || 0) +
+        Number(dv.diesel || 0) +
+        Number(dv.ac || 0),
+      0
+    );
 
-    // 8. Calculate Bill Totals
+    // 9. Calculate Bill Totals (including DV deduction)
     const billTotals = calculateBillTotals({
       items: preparedItems,
       tdsAmount: tdsRes.tdsAmount,
       debitNoteAmount: totalShortageDebit,
       receivedAmount: 0,
+      driverVoucherTotal,
     });
 
     // 9. Allocate Sequential Bill Number using FOR UPDATE (Rule 7)
     const billNumber = await getNextBillNumberForFirm(tx, input.firmId);
+
+    // 9B. Resolve Bank Account Snapshot & Firm Bill Settings
+    let selectedBankAccountId = input.bankAccountId || null;
+    let bankDetailsSnapshot: any = null;
+
+    try {
+      if (selectedBankAccountId) {
+        const bankRows = await tx
+          .select()
+          .from(bankAccounts)
+          .where(and(eq(bankAccounts.id, selectedBankAccountId), eq(bankAccounts.firmId, input.firmId)))
+          .limit(1);
+        if (bankRows.length > 0) {
+          bankDetailsSnapshot = {
+            id: bankRows[0].id,
+            accountDisplayName: bankRows[0].accountDisplayName,
+            bankName: bankRows[0].bankName,
+            accountNumber: bankRows[0].accountNumber,
+            ifscCode: bankRows[0].ifscCode,
+            branch: bankRows[0].branch || null,
+            accountType: bankRows[0].accountType,
+            upiId: bankRows[0].upiId || null,
+          };
+        }
+      } else {
+        const defaultBankRows = await tx
+          .select()
+          .from(bankAccounts)
+          .where(and(eq(bankAccounts.firmId, input.firmId), eq(bankAccounts.isDefaultForBills, true)))
+          .limit(1);
+        if (defaultBankRows.length > 0) {
+          selectedBankAccountId = defaultBankRows[0].id;
+          bankDetailsSnapshot = {
+            id: defaultBankRows[0].id,
+            accountDisplayName: defaultBankRows[0].accountDisplayName,
+            bankName: defaultBankRows[0].bankName,
+            accountNumber: defaultBankRows[0].accountNumber,
+            ifscCode: defaultBankRows[0].ifscCode,
+            branch: defaultBankRows[0].branch || null,
+            accountType: defaultBankRows[0].accountType,
+            upiId: defaultBankRows[0].upiId || null,
+          };
+        }
+      }
+    } catch (_err) {
+      // bank_accounts table might not exist in unmigrated DB environments
+    }
+
+    let settingsRows: any[] = [];
+    try {
+      settingsRows = await tx
+        .select()
+        .from(firmBillSettings)
+        .where(eq(firmBillSettings.firmId, input.firmId))
+        .limit(1);
+    } catch (_err) {
+      // firm_bill_settings table might not exist in unmigrated DB environments
+    }
+    const settings = settingsRows.length > 0 ? settingsRows[0] : null;
+
+    const displayOptionsSnapshot = {
+      showBankDetails: input.displayOptions?.showBankDetails ?? settings?.showBankDetails ?? true,
+      showPaymentTerms: input.displayOptions?.showPaymentTerms ?? settings?.showPaymentTerms ?? true,
+      showDueDate: input.displayOptions?.showDueDate ?? settings?.showDueDate ?? true,
+      showAmountInWords: input.displayOptions?.showAmountInWords ?? settings?.showAmountInWords ?? true,
+      showRemarks: input.displayOptions?.showRemarks ?? settings?.showRemarks ?? true,
+      showTermsAndConditions: input.displayOptions?.showTermsAndConditions ?? settings?.showTermsAndConditions ?? true,
+      showAuthorisedSignature: input.displayOptions?.showAuthorisedSignature ?? settings?.showAuthorisedSignature ?? true,
+      showVehicleType: input.displayOptions?.showVehicleType ?? settings?.showVehicleType ?? false,
+      showGstDetails: input.displayOptions?.showGstDetails ?? settings?.showGstDetails ?? false,
+      showReverseCharge: input.displayOptions?.showReverseCharge ?? settings?.showReverseCharge ?? false,
+      showPlaceOfSupply: input.displayOptions?.showPlaceOfSupply ?? settings?.showPlaceOfSupply ?? false,
+    };
+
+    const paymentTermsVal = input.paymentTerms || settings?.defaultPaymentTerms || "30 Days";
+    const termsAndConditionsVal = input.termsAndConditions || settings?.defaultTermsAndConditions || "Payment to be made within 30 days. Subject to local jurisdiction.";
 
     // 10. Insert Bill record
     const [bill] = await tx
       .insert(bills)
       .values({
         firmId: input.firmId,
-        partyId: input.partyId,
+        partyId: effectivePartyId,
         billNumber,
         billDate: input.billDate,
         totalNWeight: billTotals.totalNWeight.toString(),
@@ -175,12 +292,19 @@ export async function createBill(
         subtotalFreight: billTotals.subtotalFreight.toString(),
         tdsAmount: billTotals.tdsAmount.toString(),
         debitNoteAmount: billTotals.debitNoteAmount.toString(),
+        driverVoucherTotal: billTotals.driverVoucherTotal.toString(),
         netBillAmount: billTotals.netBillAmount.toString(),
         receivedAmount: "0",
         pendingAmount: billTotals.netBillAmount.toString(),
         appliedTdsSection: tdsSection,
         appliedTdsPercentage: tdsPercentage.toString(),
-        appliedFreightBasis: billPartyRule?.freightBasis || "R_WEIGHT",
+        appliedFreightBasis: billPartyRule?.freightBasis || "AUTO_SHORTAGE_BASED",
+        bankAccountId: selectedBankAccountId,
+        bankDetailsSnapshot,
+        paymentTerms: paymentTermsVal,
+        dueDate: input.dueDate || null,
+        termsAndConditions: termsAndConditionsVal,
+        displayOptionsSnapshot,
         status: "POSTED",
         notes: input.notes || null,
         createdBy: input.userId || null,
@@ -224,7 +348,7 @@ export async function createBill(
       await tx.insert(tdsEntries).values({
         firmId: input.firmId,
         billId: bill.id,
-        partyId: input.partyId,
+        partyId: effectivePartyId,
         tdsSection: tdsRes.tdsSection,
         tdsPercentage: tdsRes.tdsPercentage.toString(),
         tdsBaseAmount: tdsRes.tdsBaseAmount.toString(),
@@ -246,7 +370,7 @@ export async function createBill(
       await tx.insert(debitNotes).values({
         firmId: input.firmId,
         billId: bill.id,
-        partyId: input.partyId,
+        partyId: effectivePartyId,
         voucherNumber: `DN-${billNumber}`,
         voucherDate: input.billDate,
         totalShortageQtyRaw: preparedItems.reduce((sum, i) => sum + i.shortageQtyRaw, 0).toString(),
@@ -260,9 +384,9 @@ export async function createBill(
 
     // 14. Post Ledger Transactions (Deepraj Accounting Treatment)
     // a. Transportation Charges (Credit)
-    await postLedgerEntry(tx, {
+    const tx1 = await postLedgerEntry(tx, {
       firmId: input.firmId,
-      partyId: input.partyId,
+      partyId: effectivePartyId,
       transactionDate: input.billDate,
       particulars: `Transportation Charges RCM (Bill #${billNumber})`,
       voucherType: "TRANSPORTATION_CHARGES_RCM",
@@ -273,12 +397,13 @@ export async function createBill(
       sourceEntityId: bill.id,
       userId: input.userId,
     });
+    let currentBalance = Number(tx1.runningBalance);
 
     // b. TDS Journal (Debit)
     if (billTotals.tdsAmount > 0) {
-      await postLedgerEntry(tx, {
+      const tx2 = await postLedgerEntry(tx, {
         firmId: input.firmId,
-        partyId: input.partyId,
+        partyId: effectivePartyId,
         transactionDate: input.billDate,
         particulars: `TDS on Contract 94C Journal (Bill #${billNumber})`,
         voucherType: "TDS_JOURNAL",
@@ -288,14 +413,16 @@ export async function createBill(
         sourceEntityType: "tds_entries",
         sourceEntityId: bill.id,
         userId: input.userId,
+        overridePreviousBalance: currentBalance,
       });
+      currentBalance = Number(tx2.runningBalance);
     }
 
     // c. Debit Note (Debit)
     if (totalShortageDebit > 0) {
-      await postLedgerEntry(tx, {
+      const tx3 = await postLedgerEntry(tx, {
         firmId: input.firmId,
-        partyId: input.partyId,
+        partyId: effectivePartyId,
         transactionDate: input.billDate,
         particulars: `Shortage Debit Note RCM (DN-${billNumber})`,
         voucherType: "DEBIT_NOTE_RCM",
@@ -305,6 +432,26 @@ export async function createBill(
         sourceEntityType: "debit_notes",
         sourceEntityId: bill.id,
         userId: input.userId,
+        overridePreviousBalance: currentBalance,
+      });
+      currentBalance = Number(tx3.runningBalance);
+    }
+
+    // d. Driver Voucher Deduction (Debit) — CONFIRMED BUSINESS RULE
+    if (driverVoucherTotal > 0) {
+      await postLedgerEntry(tx, {
+        firmId: input.firmId,
+        partyId: effectivePartyId,
+        transactionDate: input.billDate,
+        particulars: `Driver Voucher Deduction (Bill #${billNumber})`,
+        voucherType: "DRIVER_VOUCHER_DEDUCTION",
+        voucherNumber: billNumber.toString(),
+        entryType: "DEBIT",
+        debitAmount: driverVoucherTotal,
+        sourceEntityType: "bills",
+        sourceEntityId: bill.id,
+        userId: input.userId,
+        overridePreviousBalance: currentBalance,
       });
     }
 
@@ -363,6 +510,7 @@ export async function editBill(
         tripId: trips.id,
         firmId: trips.firmId,
         partyId: trips.partyId,
+        dailyEntryId: trips.dailyEntryId,
         isReceived: trips.isReceived,
         // Use snapshot values from bill_items — NOT mutable daily_entries columns
         nWeight: billItems.nWeight,
@@ -410,14 +558,7 @@ export async function editBill(
       // Use the snapshotted appliedRate from bill_items as the rate basis.
       // This is the rate that was used at billing time (resolved from customerRate ?? rate).
       const rateToUse = Number(trip.appliedRate || 0);
-      const freightBasis = tripRule?.freightBasis || "R_WEIGHT";
-
-      const freightRes = calculateFreight({
-        freightBasis,
-        rate: rateToUse,
-        nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
-        rWeight: trip.rWeight ? Number(trip.rWeight) : 0,
-      });
+      const freightBasis = tripRule?.freightBasis || "AUTO_SHORTAGE_BASED";
 
       const shortageRes = calculateShortage({
         nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
@@ -426,14 +567,23 @@ export async function editBill(
         allowanceType: tripRule?.shortageAllowanceType,
         allowanceValue: tripRule?.shortageAllowanceValue ? Number(tripRule.shortageAllowanceValue) : 0,
         shortageRuleType: tripRule?.shortageRuleType,
-        materialRatePerTon: tripRule?.materialRatePerTon ? Number(tripRule.materialRatePerTon) : 0,
+        materialRatePerTon: rateToUse,
+      });
+
+      const freightRes = calculateFreight({
+        freightBasis,
+        rate: rateToUse,
+        nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
+        rWeight: trip.rWeight ? Number(trip.rWeight) : 0,
+        fixedFreightAmount: rateToUse,
+        applicableShortageDebit: shortageRes.shortageDebitAmount,
       });
 
       return {
         freight: freightRes.freightAmount,
         shortageDebitAmount: shortageRes.shortageDebitAmount,
         shortageQtyApplicable: shortageRes.applicableShortageQty,
-        shortageMaterialRate: tripRule?.materialRatePerTon ? Number(tripRule.materialRatePerTon) : 0,
+        shortageMaterialRate: rateToUse,
         nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
         rWeight: trip.rWeight ? Number(trip.rWeight) : 0,
       };
@@ -442,21 +592,48 @@ export async function editBill(
     const subtotalFreight = preparedItems.reduce((sum, i) => sum + i.freight, 0);
     const totalShortageDebit = preparedItems.reduce((sum, i) => sum + i.shortageDebitAmount, 0);
 
+    // Calculate Amount After Shortage = Gross Freight - Total Shortage Debit
+    const amountAfterShortage = Math.max(0, subtotalFreight - totalShortageDebit);
+
     const tdsSection = input.appliedTdsSection || editBillPartyRule?.tdsSection || "94C";
     const tdsPercentage = input.appliedTdsPercentage ?? (editBillPartyRule?.tdsPercentage ? Number(editBillPartyRule.tdsPercentage) : 0);
 
     const tdsRes = calculateTds({
-      grossBillAmount: subtotalFreight,
+      grossBillAmount: amountAfterShortage,
       tdsApplicable: tdsPercentage > 0,
       tdsPercentage,
       tdsSection,
     });
+
+    // 4B. Fetch Driver Voucher totals for all trips in this bill (per confirmed rule)
+    const tripDailyEntryIds = tripRows.map((t) => t.dailyEntryId).filter(Boolean) as string[];
+    const dvRows = tripDailyEntryIds.length > 0
+      ? await tx
+          .select({
+            advance: driverVouchers.advance,
+            cash: driverVouchers.cash,
+            diesel: driverVouchers.diesel,
+            ac: driverVouchers.ac,
+          })
+          .from(driverVouchers)
+          .where(inArray(driverVouchers.dailyEntryId, tripDailyEntryIds))
+      : [];
+    const driverVoucherTotal = dvRows.reduce(
+      (sum, dv) =>
+        sum +
+        Number(dv.advance || 0) +
+        Number(dv.cash || 0) +
+        Number(dv.diesel || 0) +
+        Number(dv.ac || 0),
+      0
+    );
 
     const billTotals = calculateBillTotals({
       items: preparedItems,
       tdsAmount: tdsRes.tdsAmount,
       debitNoteAmount: totalShortageDebit,
       receivedAmount: existingReceivedAmount,
+      driverVoucherTotal,
     });
 
     // 5. VALIDATE BILL EDIT INTEGRITY (Rule 8)
@@ -473,6 +650,7 @@ export async function editBill(
         subtotalFreight: billTotals.subtotalFreight.toString(),
         tdsAmount: billTotals.tdsAmount.toString(),
         debitNoteAmount: billTotals.debitNoteAmount.toString(),
+        driverVoucherTotal: billTotals.driverVoucherTotal.toString(),
         netBillAmount: billTotals.netBillAmount.toString(),
         pendingAmount: billTotals.pendingAmount.toString(),
         appliedTdsSection: tdsSection,
@@ -531,7 +709,7 @@ export async function editBill(
     );
 
     // Post updated Transportation Charges Credit
-    await postLedgerEntry(tx, {
+    const editTx1 = await postLedgerEntry(tx, {
       firmId: input.firmId,
       partyId: String(currentBill.party_id),
       transactionDate: input.billDate,
@@ -544,10 +722,11 @@ export async function editBill(
       sourceEntityId: input.billId,
       userId: input.userId,
     });
+    let editCurrentBalance = Number(editTx1.runningBalance);
 
     // Post updated TDS Journal Debit if applicable
     if (billTotals.tdsAmount > 0) {
-      await postLedgerEntry(tx, {
+      const editTx2 = await postLedgerEntry(tx, {
         firmId: input.firmId,
         partyId: String(currentBill.party_id),
         transactionDate: input.billDate,
@@ -559,12 +738,14 @@ export async function editBill(
         sourceEntityType: "tds_entries",
         sourceEntityId: input.billId,
         userId: input.userId,
+        overridePreviousBalance: editCurrentBalance,
       });
+      editCurrentBalance = Number(editTx2.runningBalance);
     }
 
     // Post updated Shortage Debit Note Debit if applicable
     if (totalShortageDebit > 0) {
-      await postLedgerEntry(tx, {
+      const editTx3 = await postLedgerEntry(tx, {
         firmId: input.firmId,
         partyId: String(currentBill.party_id),
         transactionDate: input.billDate,
@@ -576,6 +757,26 @@ export async function editBill(
         sourceEntityType: "debit_notes",
         sourceEntityId: input.billId,
         userId: input.userId,
+        overridePreviousBalance: editCurrentBalance,
+      });
+      editCurrentBalance = Number(editTx3.runningBalance);
+    }
+
+    // Post updated Driver Voucher Deduction Debit if applicable
+    if (billTotals.driverVoucherTotal > 0) {
+      await postLedgerEntry(tx, {
+        firmId: input.firmId,
+        partyId: String(currentBill.party_id),
+        transactionDate: input.billDate,
+        particulars: `Driver Voucher Deduction (Bill #${currentBill.bill_number} edited)`,
+        voucherType: "DRIVER_VOUCHER_DEDUCTION",
+        voucherNumber: String(currentBill.bill_number),
+        entryType: "DEBIT",
+        debitAmount: billTotals.driverVoucherTotal,
+        sourceEntityType: "bills",
+        sourceEntityId: input.billId,
+        userId: input.userId,
+        overridePreviousBalance: editCurrentBalance,
       });
     }
 
@@ -628,6 +829,7 @@ export async function previewBillCalculation(
       tripId: trips.id,
       firmId: trips.firmId,
       partyId: trips.partyId,
+      dailyEntryId: trips.dailyEntryId,
       isReceived: trips.isReceived,
       isBilled: trips.isBilled,
       srNo: dailyEntries.srNo,
@@ -648,6 +850,10 @@ export async function previewBillCalculation(
 
   // 2. Fetch customer rules for distinct parties in these trips
   const distinctPartyIds = [...new Set(tripRows.map((t) => t.partyId).filter(Boolean) as string[])];
+
+  if (distinctPartyIds.length > 1) {
+    throw new DomainValidationError("Selected trips belong to multiple billing parties. Please create separate bills.");
+  }
   const rulesRes = distinctPartyIds.length > 0
     ? await db
         .select()
@@ -671,14 +877,7 @@ export async function previewBillCalculation(
     const tripRule = (trip.partyId ? rulesByPartyId.get(trip.partyId) : null) ?? billPartyRule ?? null;
 
     const rateToUse = Number(trip.customerRate || trip.rate || 0);
-    const freightBasis = tripRule?.freightBasis || "R_WEIGHT";
-
-    const freightRes = calculateFreight({
-      freightBasis,
-      rate: rateToUse,
-      nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
-      rWeight: trip.rWeight ? Number(trip.rWeight) : 0,
-    });
+    const freightBasis = tripRule?.freightBasis || "AUTO_SHORTAGE_BASED";
 
     const shortageRes = calculateShortage({
       nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
@@ -687,7 +886,16 @@ export async function previewBillCalculation(
       allowanceType: tripRule?.shortageAllowanceType,
       allowanceValue: tripRule?.shortageAllowanceValue ? Number(tripRule.shortageAllowanceValue) : 0,
       shortageRuleType: tripRule?.shortageRuleType,
-      materialRatePerTon: tripRule?.materialRatePerTon ? Number(tripRule.materialRatePerTon) : 0,
+      materialRatePerTon: rateToUse,
+    });
+
+    const freightRes = calculateFreight({
+      freightBasis,
+      rate: rateToUse,
+      nWeight: trip.nWeight ? Number(trip.nWeight) : 0,
+      rWeight: trip.rWeight ? Number(trip.rWeight) : 0,
+      fixedFreightAmount: rateToUse,
+      applicableShortageDebit: shortageRes.shortageDebitAmount,
     });
 
     return {
@@ -709,7 +917,7 @@ export async function previewBillCalculation(
       shortageAllowanceType: tripRule?.shortageAllowanceType || null,
       shortageRuleType: tripRule?.shortageRuleType || null,
       shortageQtyApplicable: shortageRes.applicableShortageQty,
-      shortageMaterialRate: tripRule?.materialRatePerTon ? Number(tripRule.materialRatePerTon) : 0,
+      shortageMaterialRate: rateToUse,
       shortageDebitAmount: shortageRes.shortageDebitAmount,
     };
   });
@@ -717,21 +925,48 @@ export async function previewBillCalculation(
   const subtotalFreight = preparedItems.reduce((sum, item) => sum + item.freight, 0);
   const totalShortageDebit = preparedItems.reduce((sum, item) => sum + item.shortageDebitAmount, 0);
 
+  // Calculate Amount After Shortage = Gross Freight - Total Shortage Debit
+  const amountAfterShortage = Math.max(0, subtotalFreight - totalShortageDebit);
+
   const tdsSection = rawInput.appliedTdsSection || billPartyRule?.tdsSection || "94C";
   const tdsPercentage = rawInput.appliedTdsPercentage ?? (billPartyRule?.tdsPercentage ? Number(billPartyRule.tdsPercentage) : 0);
 
   const tdsRes = calculateTds({
-    grossBillAmount: subtotalFreight,
+    grossBillAmount: amountAfterShortage,
     tdsApplicable: tdsPercentage > 0,
     tdsPercentage,
     tdsSection,
   });
+
+  // Fetch Driver Voucher totals for preview trips
+  const tripDailyEntryIds = tripRows.map((t) => t.dailyEntryId).filter(Boolean) as string[];
+  const dvRows = tripDailyEntryIds.length > 0
+    ? await db
+        .select({
+          advance: driverVouchers.advance,
+          cash: driverVouchers.cash,
+          diesel: driverVouchers.diesel,
+          ac: driverVouchers.ac,
+        })
+        .from(driverVouchers)
+        .where(inArray(driverVouchers.dailyEntryId, tripDailyEntryIds))
+    : [];
+  const driverVoucherTotal = dvRows.reduce(
+    (sum, dv) =>
+      sum +
+      Number(dv.advance || 0) +
+      Number(dv.cash || 0) +
+      Number(dv.diesel || 0) +
+      Number(dv.ac || 0),
+    0
+  );
 
   const billTotals = calculateBillTotals({
     items: preparedItems,
     tdsAmount: tdsRes.tdsAmount,
     debitNoteAmount: totalShortageDebit,
     receivedAmount: 0,
+    driverVoucherTotal,
   });
 
   return {
@@ -741,6 +976,7 @@ export async function previewBillCalculation(
     tdsSection,
     tdsPercentage,
     tdsAmount: billTotals.tdsAmount,
+    driverVoucherTotal: billTotals.driverVoucherTotal,
     netBillAmount: billTotals.netBillAmount,
     totalNWeight: billTotals.totalNWeight,
     totalRWeight: billTotals.totalRWeight,
@@ -760,6 +996,7 @@ export async function listBills(db: NodePgDatabase<any>, firmId: string) {
       subtotalFreight: bills.subtotalFreight,
       tdsAmount: bills.tdsAmount,
       debitNoteAmount: bills.debitNoteAmount,
+      driverVoucherTotal: bills.driverVoucherTotal,
       netBillAmount: bills.netBillAmount,
       receivedAmount: bills.receivedAmount,
       pendingAmount: bills.pendingAmount,
@@ -793,6 +1030,7 @@ export async function getBillById(db: NodePgDatabase<any>, billId: string, firmI
       subtotalFreight: bills.subtotalFreight,
       tdsAmount: bills.tdsAmount,
       debitNoteAmount: bills.debitNoteAmount,
+      driverVoucherTotal: bills.driverVoucherTotal,
       netBillAmount: bills.netBillAmount,
       receivedAmount: bills.receivedAmount,
       pendingAmount: bills.pendingAmount,
@@ -813,10 +1051,145 @@ export async function getBillById(db: NodePgDatabase<any>, billId: string, firmI
   if (billRows.length === 0) throw new EntityNotFoundError("Bill", billId);
   const bill = billRows[0];
 
-  const items = await db
+  let items = await db
     .select()
     .from(billItems)
     .where(eq(billItems.billId, billId));
+
+  if (items.length === 0) {
+    const linkedTrips = await db
+      .select({
+        tripId: trips.id,
+        srNo: dailyEntries.srNo,
+        entryDate: dailyEntries.entryDate,
+        truckNumberRaw: dailyEntries.truckNumberRaw,
+        lrNumber: dailyEntries.lrNumber,
+        fromLocationRaw: dailyEntries.fromLocationRaw,
+        toLocationRaw: dailyEntries.toLocationRaw,
+        nWeight: dailyEntries.nWeight,
+        rWeight: dailyEntries.rWeight,
+        customerRate: dailyEntries.customerRate,
+        rate: dailyEntries.rate,
+        createdAt: trips.createdAt,
+        updatedAt: trips.updatedAt,
+      })
+      .from(trips)
+      .innerJoin(dailyEntries, eq(trips.dailyEntryId, dailyEntries.id))
+      .where(eq(trips.billId, billId));
+
+    // Fetch customer rule for the party to calculate per-trip shortage in fallback
+    const partyRuleRes = bill.partyId
+      ? await db
+          .select()
+          .from(customerRules)
+          .where(and(eq(customerRules.firmId, firmId), eq(customerRules.partyId, bill.partyId)))
+          .limit(1)
+      : [];
+    const partyRule = partyRuleRes.length > 0 ? partyRuleRes[0] : null;
+
+    // Fetch debit note snapshot if present for reconciliation
+    const dnsRes = await db
+      .select()
+      .from(debitNotes)
+      .where(eq(debitNotes.billId, billId));
+    const debitNote = dnsRes.length > 0 ? dnsRes[0] : null;
+
+    const totalDnAllowance = debitNote?.totalShortageAllowance ? Number(debitNote.totalShortageAllowance) : 0;
+    const dnMaterialRate = debitNote?.materialRateApplied ? Number(debitNote.materialRateApplied) : 0;
+    const billDebitNoteAmount = Number(bill.debitNoteAmount || 0);
+
+    const tripShortages = linkedTrips.map((t) => {
+      const rateToUse = Number(t.customerRate || t.rate || 0);
+      const nWt = t.nWeight ? Number(t.nWeight) : 0;
+      const rWt = t.rWeight ? Number(t.rWeight) : 0;
+
+      let allowanceVal = partyRule?.shortageAllowanceValue ? Number(partyRule.shortageAllowanceValue) : 0;
+      let matRate = partyRule?.materialRatePerTon ? Number(partyRule.materialRatePerTon) : rateToUse;
+
+      if (totalDnAllowance > 0 && linkedTrips.length > 0) {
+        allowanceVal = totalDnAllowance / linkedTrips.length;
+      }
+      if (dnMaterialRate > 0) {
+        matRate = dnMaterialRate;
+      }
+
+      const shortageRes = calculateShortage({
+        nWeight: nWt,
+        rWeight: rWt,
+        shortageApplicable: partyRule?.shortageApplicable ?? (billDebitNoteAmount > 0),
+        allowanceType: partyRule?.shortageAllowanceType || "FIXED_KG",
+        allowanceValue: allowanceVal,
+        shortageRuleType: partyRule?.shortageRuleType || "EXCESS_ONLY",
+        materialRatePerTon: matRate,
+      });
+
+      return {
+        trip: t,
+        rateToUse,
+        nWt,
+        rWt,
+        shortageRes,
+        matRate,
+        allowanceVal,
+      };
+    });
+
+    let sumCalculatedShortage = tripShortages.reduce((sum, item) => sum + item.shortageRes.shortageDebitAmount, 0);
+
+    // If sum of calculated shortages differs from stored bill.debitNoteAmount, attribute debit note proportionally to trips with raw shortage
+    if (billDebitNoteAmount > 0 && Math.abs(sumCalculatedShortage - billDebitNoteAmount) > 0.01) {
+      const rawShortages = tripShortages.map((t) => t.shortageRes.applicableShortageQty || Math.max(0, t.nWt - t.rWt));
+      const totalRaw = rawShortages.reduce((sum, q) => sum + q, 0);
+
+      if (totalRaw > 0) {
+        tripShortages.forEach((t, idx) => {
+          if (rawShortages[idx] > 0) {
+            t.shortageRes.shortageDebitAmount = Math.round((rawShortages[idx] / totalRaw) * billDebitNoteAmount * 100) / 100;
+          } else {
+            t.shortageRes.shortageDebitAmount = 0;
+          }
+        });
+      }
+    }
+
+    items = tripShortages.map(({ trip: t, rateToUse, nWt, rWt, shortageRes, matRate, allowanceVal }) => {
+      let billedWeight = rWt || nWt;
+      const subtotalFreightNum = Number(bill.subtotalFreight || 0);
+      if (nWt > 0 && Math.abs(nWt * rateToUse - subtotalFreightNum) < 1) {
+        billedWeight = nWt;
+      }
+      const calculatedFreight = rateToUse * billedWeight;
+
+      return {
+        id: t.tripId,
+        billId: bill.id,
+        tripId: t.tripId,
+        srNo: t.srNo,
+        tripDate: t.entryDate,
+        entryDate: t.entryDate,
+        truckNumberRaw: t.truckNumberRaw,
+        lrNumber: t.lrNumber,
+        fromLocationRaw: t.fromLocationRaw,
+        toLocationRaw: t.toLocationRaw,
+        nWeight: nWt.toFixed(3),
+        rWeight: rWt.toFixed(3),
+        appliedRate: rateToUse.toString(),
+        rate: rateToUse.toString(),
+        appliedFreightBasis: bill.appliedFreightBasis || "AUTO",
+        billedWeight: billedWeight.toString(),
+        freight: calculatedFreight.toString(),
+        shortageQtyRaw: shortageRes.rawShortageQty.toString(),
+        shortageAllowanceValue: allowanceVal.toString(),
+        shortageAllowanceType: partyRule?.shortageAllowanceType || null,
+        shortageRuleType: partyRule?.shortageRuleType || null,
+        shortageQtyApplicable: shortageRes.applicableShortageQty.toString(),
+        shortageMaterialRate: matRate.toString(),
+        shortageDebitAmount: shortageRes.shortageDebitAmount.toString(),
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+      } as any;
+    });
+  }
 
   const tds = await db
     .select()

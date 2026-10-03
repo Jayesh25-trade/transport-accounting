@@ -11,6 +11,8 @@ export * from "./users";
 export * from "./parties-companies";
 export * from "./customer-rules";
 export * from "./trucks-locations";
+export * from "./bank-accounts";
+export * from "./firm-bill-settings";
 
 // Operational
 export * from "./daily-entries";

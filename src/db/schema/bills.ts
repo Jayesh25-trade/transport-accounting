@@ -31,8 +31,10 @@ import {
   index,
   pgEnum,
   foreignKey,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { firms } from "./firms";
+import { bankAccounts } from "./bank-accounts";
 
 export const firmBillSequences = pgTable(
   "firm_bill_sequences",
@@ -166,11 +168,23 @@ export const bills = pgTable(
       .notNull()
       .default("0"),
 
-    // Net bill amount = Gross - TDS - Debit Notes (or per confirmed formula)
+    // Net bill amount = Gross - TDS - Debit Notes - Driver Voucher (per confirmed formula)
     netBillAmount: numeric("net_bill_amount", {
       precision: 15,
       scale: 2,
     }).notNull(),
+
+    // CONFIRMED BUSINESS RULE (CLIENT CONFIRMED):
+    // Driver Voucher (advance + cash + diesel + ac) for all trips in this bill
+    // is deducted from the final payable.
+    // This column snapshots the DV total at bill creation/edit time so the
+    // bill remains stable even if underlying daily entry data changes.
+    driverVoucherTotal: numeric("driver_voucher_total", {
+      precision: 15,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
 
     // Amount already received against this bill
     receivedAmount: numeric("received_amount", { precision: 15, scale: 2 })
@@ -191,6 +205,16 @@ export const bills = pgTable(
 
     // Rule snapshot: what freight basis was used
     appliedFreightBasis: varchar("applied_freight_basis", { length: 20 }),
+
+    // ---- Bill Display & Bank Account Snapshots ----
+    bankAccountId: uuid("bank_account_id").references(() => bankAccounts.id, {
+      onDelete: "set null",
+    }),
+    bankDetailsSnapshot: jsonb("bank_details_snapshot"),
+    paymentTerms: varchar("payment_terms", { length: 100 }),
+    dueDate: date("due_date"),
+    termsAndConditions: text("terms_and_conditions"),
+    displayOptionsSnapshot: jsonb("display_options_snapshot"),
 
     status: billStatusEnum("status").notNull().default("DRAFT"),
 

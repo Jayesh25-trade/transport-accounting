@@ -211,16 +211,44 @@ export async function updateDailyEntry(
       .where(eq(driverVouchers.dailyEntryId, entryId))
       .returning();
 
-    // 5. Update related trip record
+    // 5. Upsert related trip record
+    // CONFIRMED BUG FIX: If the daily entry was originally created without a partyId,
+    // no trips row was ever inserted. A plain UPDATE silently affected 0 rows.
+    // We now check whether a trips row exists for this dailyEntry:
+    //   - If it exists  → update partyId + isReceived (preserves isBilled, billId, etc.)
+    //   - If it is missing → insert a new row with the same fields createDailyEntry uses
+    // The trips.dailyEntryId UNIQUE constraint prevents duplicates at DB level.
     if (input.partyId) {
-      await tx
-        .update(trips)
-        .set({
+      const existingTrip = await tx
+        .select({ id: trips.id })
+        .from(trips)
+        .where(eq(trips.dailyEntryId, entryId))
+        .limit(1);
+
+      if (existingTrip.length > 0) {
+        // Trip row already exists — update mutable fields only.
+        // isBilled and billId are intentionally NOT touched here;
+        // they are only modified by the billing service.
+        await tx
+          .update(trips)
+          .set({
+            partyId: input.partyId,
+            isReceived: input.isReceived,
+            updatedAt: new Date(),
+          })
+          .where(eq(trips.dailyEntryId, entryId));
+      } else {
+        // Trip row was never created (entry was originally created without a partyId).
+        // Insert now with the same field mapping that createDailyEntry uses.
+        await tx.insert(trips).values({
+          firmId: input.firmId,
+          dailyEntryId: entryId,
           partyId: input.partyId,
           isReceived: input.isReceived,
-          updatedAt: new Date(),
-        })
-        .where(eq(trips.dailyEntryId, entryId));
+          isBilled: false,
+          // billId intentionally omitted — defaults to null (not yet billed)
+        });
+      }
     }
 
     // 6. Audit log
@@ -367,5 +395,68 @@ export async function getNextSrNo(db: NodePgDatabase<any>, firmId: string): Prom
   }
   return Number(currentMax) + 1;
 }
+
+export async function deleteDailyEntry(
+  db: NodePgDatabase<any>,
+  entryId: string,
+  firmId: string,
+  userId?: string
+) {
+  return await db.transaction(async (tx) => {
+    // 1. Fetch existing daily entry
+    const existingList = await tx
+      .select()
+      .from(dailyEntries)
+      .where(and(eq(dailyEntries.id, entryId), eq(dailyEntries.firmId, firmId)))
+      .limit(1);
+
+    if (existingList.length === 0) {
+      throw new EntityNotFoundError("DailyEntry", entryId);
+    }
+    const existing = existingList[0];
+
+    // 2. Check if billed in a POSTED bill
+    const tripBillStatus = await tx
+      .select({
+        isBilled: trips.isBilled,
+        billId: trips.billId,
+        billNumber: bills.billNumber,
+        billStatus: bills.status,
+      })
+      .from(trips)
+      .leftJoin(bills, eq(trips.billId, bills.id))
+      .where(eq(trips.dailyEntryId, entryId))
+      .limit(1);
+
+    if (tripBillStatus.length > 0) {
+      const tripBill = tripBillStatus[0];
+      if (tripBill.isBilled && tripBill.billStatus === "POSTED") {
+        throw new BilledTripEditError(tripBill.billNumber ?? "unknown");
+      }
+    }
+
+    // 3. Delete driver_voucher associated with this daily entry
+    await tx.delete(driverVouchers).where(eq(driverVouchers.dailyEntryId, entryId));
+
+    // 4. Delete trips associated with this daily entry
+    await tx.delete(trips).where(eq(trips.dailyEntryId, entryId));
+
+    // 5. Delete daily_entry
+    await tx.delete(dailyEntries).where(and(eq(dailyEntries.id, entryId), eq(dailyEntries.firmId, firmId)));
+
+    // 6. Record audit log
+    await recordAuditLog(tx, {
+      firmId,
+      userId,
+      action: "DELETE",
+      entityName: "daily_entries",
+      entityId: entryId,
+      oldValues: existing,
+    });
+
+    return { success: true };
+  });
+}
+
 
 

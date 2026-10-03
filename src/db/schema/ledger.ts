@@ -53,6 +53,7 @@ export const ledgerVoucherTypeEnum = pgEnum("ledger_voucher_type", [
   "PAYMENT_CASH",                 // Cash payment received
   "ADVANCE_RECEIPT",              // Advance payment received
   "ADJUSTMENT",                   // Manual correction (admin only)
+  "DRIVER_VOUCHER_DEDUCTION",     // CONFIRMED: Driver Voucher (advance+cash+diesel+ac) deducted from net payable
 ]);
 
 // Which direction this ledger entry affects the party account

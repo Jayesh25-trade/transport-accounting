@@ -13,7 +13,8 @@ import { useMasterList } from "@/lib/use-master-list";
 import { useApiClient, ApiError } from "@/lib/api-client";
 import { useFirm } from "@/lib/firm-context";
 import { Modal } from "@/components/ui/modal";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatStatusLabel } from "@/lib/utils";
+import { BillDocumentView } from "@/components/bills/bill-document-view";
 
 // ─── Types ────────────────────────────────────────────────────
 interface BillRecord {
@@ -98,8 +99,8 @@ function formatTons(val: number | string | null | undefined): string {
   return `${num.toFixed(3)} T`;
 }
 
-// ─── Detailed View Modal ──────────────────────────────────────
-function BillDetailModal({
+// ─── Bill View Modal — full transport invoice document ────────
+function BillViewModal({
   billId,
   onClose,
 }: {
@@ -107,6 +108,8 @@ function BillDetailModal({
   onClose: () => void;
 }) {
   const api = useApiClient();
+  const { currentFirm } = useFirm();
+  const firmIdParam = currentFirm?.id ? `?firmId=${encodeURIComponent(currentFirm.id)}` : "";
   const [detail, setDetail] = useState<DetailedBillRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -126,128 +129,54 @@ function BillDetailModal({
       }
     }
     load();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [api, billId]);
 
   if (loading) {
-    return (
-      <div className="p-8 text-center text-[#7A7F85] text-sm">
-        Loading bill details…
-      </div>
-    );
+    return <div className="p-8 text-center text-[#7A7F85] text-sm">Loading bill…</div>;
   }
 
   if (error || !detail) {
     return (
       <div className="p-4 bg-[#FDEDED] text-[#D32F2F] rounded-lg text-xs">
-        {error || "Bill details not found"}
+        {error || "Bill not found"}
       </div>
     );
   }
 
+  const downloadUrl = `/api/bills/${detail.id}/pdf${firmIdParam ? firmIdParam + "&download=true" : "?download=true"}`;
+  const printUrl   = `/api/bills/${detail.id}/pdf${firmIdParam}`;
+
   return (
-    <div className="space-y-4 text-[#1A1D20]">
-      {/* Top Banner */}
-      <div className="flex flex-wrap items-center justify-between p-4 rounded-xl bg-[#FAF8F5] border border-[#D8D5CE] shadow-xs">
-        <div>
-          <span className="text-xs text-[#7A7F85] font-bold uppercase tracking-wider block">
-            Bill Invoice #{detail.billNumber}
-          </span>
-          <h3 className="text-base font-bold text-[#1A1D20] mt-0.5">
-            {detail.partyName || "Customer Invoice"}
-          </h3>
-          <span className="text-xs text-[#5F6368]">Date: {formatDate(detail.billDate)}</span>
-        </div>
-        <div className="text-right">
-          <Badge variant={Number(detail.pendingAmount) === 0 ? "success" : "neutral"}>
-            {detail.status}
-          </Badge>
-          <div className="text-xs font-mono-nums text-[#5F6368] mt-1 font-semibold">
-            Pending: {formatCurrency(detail.pendingAmount)}
-          </div>
-        </div>
-      </div>
-
-      {/* Totals Breakdown Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-        <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 shadow-xs">
-          <span className="text-[#7A7F85] font-bold block uppercase text-[10px] tracking-wider">Subtotal Freight</span>
-          <span className="font-mono-nums font-bold text-sm text-[#1A1D20] mt-1 block">
-            {formatCurrency(detail.subtotalFreight)}
-          </span>
-        </div>
-
-        <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 shadow-xs">
-          <span className="text-[#D32F2F] font-bold block uppercase text-[10px] tracking-wider">Shortage Debit Note</span>
-          <span className="font-mono-nums font-bold text-sm text-[#D32F2F] mt-1 block">
-            - {formatCurrency(detail.debitNoteAmount)}
-          </span>
-        </div>
-
-        <div className="rounded-xl border border-[#D8D5CE] bg-white p-3.5 shadow-xs">
-          <span className="text-[#0288D1] font-bold block uppercase text-[10px] tracking-wider">
-            TDS ({detail.appliedTdsPercentage ?? 0}%)
-          </span>
-          <span className="font-mono-nums font-bold text-sm text-[#0288D1] mt-1 block">
-            - {formatCurrency(detail.tdsAmount)}
-          </span>
-        </div>
-
-        <div className="rounded-xl border border-[#A5D6A7] bg-[#E8F5E9] p-3.5 shadow-xs">
-          <span className="text-[#2E7D32] font-bold block uppercase text-[10px] tracking-wider">Net Bill Amount</span>
-          <span className="font-mono-nums font-black text-sm text-[#2E7D32] mt-1 block">
-            {formatCurrency(detail.netBillAmount)}
-          </span>
+    <div className="flex flex-col">
+      {/* Action bar */}
+      <div className="flex items-center justify-between gap-2 pb-3 border-b border-[#E5E7EB] bg-white sticky top-0 z-10">
+        <div className="flex items-center gap-2">
+          <a
+            href={downloadUrl}
+            download
+            className="btn btn-secondary btn-sm"
+            title="Download Bill PDF Invoice"
+            id={`modal-bill-download-${detail.id}`}
+          >
+            Download PDF
+          </a>
+          <a
+            href={printUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-coral btn-sm"
+            title="Print Bill Invoice"
+            id={`modal-bill-print-${detail.id}`}
+          >
+            Print
+          </a>
         </div>
       </div>
 
-      {/* Bill Items Table */}
-      <div>
-        <h4 className="text-xs font-bold uppercase tracking-wider text-[#5F6368] mb-2">
-          Billed Trips ({detail.items?.length || 0})
-        </h4>
-        <div className="border border-[#D8D5CE] rounded-xl overflow-hidden max-h-[260px] overflow-y-auto bg-white shadow-xs">
-          <table className="w-full text-left text-[11.5px] border-collapse">
-            <thead className="bg-[#FAF8F5] border-b border-[#D8D5CE] font-semibold uppercase text-[#5F6368] sticky top-0">
-              <tr>
-                <th className="p-2.5">Date</th>
-                <th className="p-2.5">Truck</th>
-                <th className="p-2.5">LR No</th>
-                <th className="p-2.5">Route</th>
-                <th className="p-2.5 text-right">N-Wt</th>
-                <th className="p-2.5 text-right">R-Wt</th>
-                <th className="p-2.5 text-right">Rate</th>
-                <th className="p-2.5 text-right">Freight</th>
-                <th className="p-2.5 text-right">Shortage Debit</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#EFECE6] font-mono-nums">
-              {(detail.items || []).map((item) => (
-                <tr key={item.id} className="hover:bg-[#FAF8F5] transition-colors">
-                  <td className="p-2.5 whitespace-nowrap">{formatDate(item.tripDate)}</td>
-                  <td className="p-2.5 font-bold">{item.truckNumberRaw || "—"}</td>
-                  <td className="p-2.5">{item.lrNumber || "—"}</td>
-                  <td className="p-2.5 font-sans">{item.fromLocationRaw} → {item.toLocationRaw}</td>
-                  <td className="p-2.5 text-right">{formatTons(item.nWeight)}</td>
-                  <td className="p-2.5 text-right">{formatTons(item.rWeight)}</td>
-                  <td className="p-2.5 text-right">₹{item.appliedRate}</td>
-                  <td className="p-2.5 text-right font-bold">{formatCurrency(item.freight)}</td>
-                  <td className="p-2.5 text-right text-[#D32F2F]">
-                    {Number(item.shortageDebitAmount) > 0 ? formatCurrency(item.shortageDebitAmount) : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="flex justify-end pt-3 border-t border-[#D8D5CE]">
-        <button type="button" onClick={onClose} className="btn btn-secondary btn-sm">
-          Close
-        </button>
+      {/* Document view — proper transport invoice over light grey surround */}
+      <div className="bg-[#F3F4F6] p-4 sm:p-6 overflow-y-auto max-h-[78vh]">
+        <BillDocumentView bill={detail as any} />
       </div>
     </div>
   );
@@ -337,7 +266,7 @@ function BillsPageContent() {
     },
     {
       key: "partyName",
-      label: "Party (Customer)",
+      label: "Customer",
       render: (b) => (
         <span className="font-bold text-xs text-[#E05638]">
           {b.partyName || "—"}
@@ -403,7 +332,7 @@ function BillsPageContent() {
       label: "Status",
       render: (b) => (
         <Badge variant={Number(b.pendingAmount) === 0 ? "success" : "neutral"}>
-          {b.status}
+          {formatStatusLabel(b.status)}
         </Badge>
       ),
     },
@@ -462,7 +391,7 @@ function BillsPageContent() {
     <div className="animate-fade-in space-y-4 text-[#1A1D20]">
       <PageHeader
         title="Bills"
-        subtitle="Customer invoices with automatic per-trip shortage debits & TDS accounting"
+        subtitle="Customer invoices with shortage and TDS deductions."
         breadcrumbs={[{ label: "Billing" }, { label: "Bills" }]}
         actions={
           <Link href="/billing/new">
@@ -503,7 +432,7 @@ function BillsPageContent() {
 
         <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
           <span className="text-[11px] font-bold text-[#2E7D32] uppercase tracking-wider block">
-            Total Billed Net Amount
+            Total Billed (Net)
           </span>
           <span className="text-2xl font-bold text-[#2E7D32] font-mono-nums mt-1 block">
             {formatCurrency(stats.totalNet)}
@@ -512,7 +441,7 @@ function BillsPageContent() {
 
         <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
           <span className="text-[11px] font-bold text-[#ED6C02] uppercase tracking-wider block">
-            Total Outstanding Pending
+            Total Outstanding
           </span>
           <span className="text-2xl font-bold text-[#ED6C02] font-mono-nums mt-1 block">
             {formatCurrency(stats.totalPending)}
@@ -531,7 +460,7 @@ function BillsPageContent() {
               placeholder="Search bill number, party name…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="form-input pl-8 text-xs"
+              className="form-input search-input text-xs"
               id="bills-search"
             />
           </div>
@@ -621,15 +550,15 @@ function BillsPageContent() {
         onRowClick={(b) => setViewBillId(b.id)}
       />
 
-      {/* View Bill Modal */}
+      {/* View Bill Modal — full transport invoice document */}
       <Modal
         open={Boolean(viewBillId)}
         onClose={() => setViewBillId(null)}
-        title="Bill Invoice Details"
+        title={`Bill Invoice`}
         size="lg"
       >
         {viewBillId && (
-          <BillDetailModal billId={viewBillId} onClose={() => setViewBillId(null)} />
+          <BillViewModal billId={viewBillId} onClose={() => setViewBillId(null)} />
         )}
       </Modal>
     </div>

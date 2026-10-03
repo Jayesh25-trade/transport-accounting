@@ -12,6 +12,7 @@ import { useApiClient, ApiError } from "@/lib/api-client";
 import { useFirm } from "@/lib/firm-context";
 import { Modal, Field, FormGrid, FormActions } from "@/components/ui/modal";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { AllocateAdvanceModal } from "@/components/payments/allocate-advance-modal";
 
 // ─── Types ────────────────────────────────────────────────────
 interface PaymentAllocationRecord {
@@ -117,6 +118,7 @@ export default function PaymentsPage() {
   // Modals & Forms
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewPayment, setViewPayment] = useState<PaymentRecord | null>(null);
+  const [allocatePayment, setAllocatePayment] = useState<PaymentRecord | null>(null);
 
   const [form, setForm] = useState<AddPaymentFormData>(INITIAL_FORM);
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof AddPaymentFormData, string>>>({});
@@ -236,13 +238,16 @@ export default function PaymentsPage() {
 
     paymentsList.forEach((p) => {
       const amt = Number(p.amount) || 0;
+      const unallocated = Number(p.unallocatedAmount) || 0;
       totalAmount += amt;
       if (p.paymentType === "AGAINST_BILL") {
         againstBillCount++;
         againstBillAmount += amt;
       } else {
-        advanceCount++;
-        advanceAmount += amt;
+        if (unallocated > 0) {
+          advanceCount++;
+        }
+        advanceAmount += unallocated;
       }
     });
 
@@ -311,7 +316,7 @@ export default function PaymentsPage() {
     },
     {
       key: "partyName",
-      label: "Party (Customer)",
+      label: "Customer",
       render: (p) => (
         <span className="font-bold text-xs text-[#E05638]">
           {p.partyName || "—"}
@@ -321,11 +326,20 @@ export default function PaymentsPage() {
     {
       key: "paymentType",
       label: "Type",
-      render: (p) => (
-        <Badge variant={p.paymentType === "AGAINST_BILL" ? "info" : "neutral"}>
-          {p.paymentType === "AGAINST_BILL" ? "AGAINST BILL" : "ADVANCE (Unallocated)"}
-        </Badge>
-      ),
+      render: (p) => {
+        if (p.paymentType === "AGAINST_BILL") {
+          return <Badge variant="info">AGAINST BILL</Badge>;
+        }
+        const unallocated = Number(p.unallocatedAmount) || 0;
+        const total = Number(p.amount) || 0;
+        if (unallocated <= 0 || p.isFullyAllocated) {
+          return <Badge variant="neutral">ADVANCE (Fully Allocated)</Badge>;
+        }
+        if (unallocated < total) {
+          return <Badge variant="info">ADVANCE (Partially Allocated)</Badge>;
+        }
+        return <Badge variant="neutral">ADVANCE (Unallocated)</Badge>;
+      },
     },
     {
       key: "paymentMode",
@@ -346,7 +360,18 @@ export default function PaymentsPage() {
       label: "Bill Ref",
       render: (p) => {
         if (p.paymentType === "ADVANCE") {
-          return <span className="text-xs text-[#0288D1] font-semibold">Unallocated Advance</span>;
+          const unallocated = Number(p.unallocatedAmount) || 0;
+          if (unallocated <= 0) {
+            const billNums = (p.allocations || [])
+              .map((a) => (a.billNumber ? `#${a.billNumber}` : null))
+              .filter(Boolean);
+            return <span className="font-mono-nums text-xs font-bold text-[#1A1D20]">Bill {billNums.join(", ") || "Allocated"}</span>;
+          }
+          return (
+            <span className="text-xs text-[#0288D1] font-semibold">
+              Unallocated: {formatCurrency(unallocated)}
+            </span>
+          );
         }
         if (p.allocations && p.allocations.length > 0) {
           const billNums = p.allocations
@@ -370,19 +395,37 @@ export default function PaymentsPage() {
     {
       key: "actions",
       label: "",
-      render: (p) => (
-        <button
-          className="rounded-lg border border-[#D8D5CE] bg-white px-2.5 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#FAF8F5] transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            setViewPayment(p);
-          }}
-          title="View Payment Voucher"
-          id={`payment-view-${p.id}`}
-        >
-          View
-        </button>
-      ),
+      render: (p) => {
+        const canAllocate = p.paymentType === "ADVANCE" && Number(p.unallocatedAmount) > 0 && !p.isFullyAllocated;
+        return (
+          <div className="flex items-center gap-1.5 justify-end">
+            <button
+              className="rounded-lg border border-[#D8D5CE] bg-white px-2.5 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#FAF8F5] transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setViewPayment(p);
+              }}
+              title="View Payment Voucher"
+              id={`payment-view-${p.id}`}
+            >
+              View
+            </button>
+            {canAllocate && (
+              <button
+                className="rounded-lg border border-[#0288D1]/30 bg-[#E1F5FE] px-2.5 py-1 text-xs font-semibold text-[#0288D1] hover:bg-[#B3E5FC] transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAllocatePayment(p);
+                }}
+                title="Allocate Advance to Bill"
+                id={`payment-allocate-${p.id}`}
+              >
+                Allocate
+              </button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -390,7 +433,7 @@ export default function PaymentsPage() {
     <div className="animate-fade-in space-y-4 text-[#1A1D20]">
       <PageHeader
         title="Payments"
-        subtitle="Customer payment vouchers & bill allocations — firm-scoped"
+        subtitle="Customer payments and how they are applied to bills."
         breadcrumbs={[{ label: "Payments" }]}
         actions={
           <Button
@@ -446,7 +489,7 @@ export default function PaymentsPage() {
 
         <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs">
           <span className="text-[11px] font-bold text-[#0288D1] uppercase tracking-wider block">
-            Advance Receipts (Unallocated)
+            Unallocated Advance
           </span>
           <span className="text-2xl font-bold text-[#0288D1] font-mono-nums mt-1 block">
             {formatCurrency(stats.advanceAmount)}
@@ -466,7 +509,7 @@ export default function PaymentsPage() {
               placeholder="Search party, UTR, reference, remarks…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="form-input pl-8 text-xs"
+              className="form-input search-input text-xs"
               id="payments-search"
             />
           </div>
@@ -636,7 +679,7 @@ export default function PaymentsPage() {
           </div>
 
           <FormGrid cols={2}>
-            <Field label="Billing Customer (Party)" required error={formErrors.partyId}>
+            <Field label="Customer" required error={formErrors.partyId}>
               <select
                 value={form.partyId}
                 onChange={(e) => setFormField("partyId", e.target.value)}
@@ -667,7 +710,7 @@ export default function PaymentsPage() {
           {form.paymentType === "AGAINST_BILL" && (
             <div className="p-3.5 bg-[#FAF8F5] rounded-xl border border-[#D8D5CE] space-y-3">
               <Field
-                label="Select Target Bill"
+                label="Select Bill"
                 required
                 error={formErrors.billId}
                 hint={
@@ -896,6 +939,20 @@ export default function PaymentsPage() {
           </div>
         )}
       </Modal>
+
+      {/* Allocate Advance Modal */}
+      <AllocateAdvanceModal
+        open={Boolean(allocatePayment)}
+        onClose={() => setAllocatePayment(null)}
+        payment={allocatePayment}
+        bills={billsList}
+        onSuccess={(msg) => {
+          setFeedback(msg);
+          setTimeout(() => setFeedback(null), 5000);
+          refreshPayments();
+          refreshBills();
+        }}
+      />
     </div>
   );
 }

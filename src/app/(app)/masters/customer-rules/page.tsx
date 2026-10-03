@@ -21,7 +21,7 @@ interface CustomerRule {
   id: string;
   firmId: string;
   partyId: string;
-  freightBasis: "R_WEIGHT" | "N_WEIGHT" | "FIXED";
+  freightBasis: "R_WEIGHT" | "N_WEIGHT" | "FIXED" | "AUTO_SHORTAGE_BASED";
   shortageApplicable: boolean;
   shortageAllowanceType: "PERCENTAGE" | "FIXED_KG" | null;
   shortageAllowanceValue: string | null;
@@ -33,7 +33,7 @@ interface CustomerRule {
 }
 
 interface RuleFormState {
-  freightBasis: "R_WEIGHT" | "N_WEIGHT" | "FIXED";
+  freightBasis: "R_WEIGHT" | "N_WEIGHT" | "FIXED" | "AUTO_SHORTAGE_BASED";
   shortageApplicable: boolean;
   shortageAllowanceType: "PERCENTAGE" | "FIXED_KG" | null;
   shortageAllowanceValue: string;
@@ -45,7 +45,7 @@ interface RuleFormState {
 }
 
 const DEFAULT_RULE: RuleFormState = {
-  freightBasis: "R_WEIGHT",
+  freightBasis: "AUTO_SHORTAGE_BASED",
   shortageApplicable: false,
   shortageAllowanceType: null,
   shortageAllowanceValue: "",
@@ -59,7 +59,7 @@ const DEFAULT_RULE: RuleFormState = {
 function ruleToForm(rule: CustomerRule | null): RuleFormState {
   if (!rule) return DEFAULT_RULE;
   return {
-    freightBasis: rule.freightBasis,
+    freightBasis: rule.freightBasis || "AUTO_SHORTAGE_BASED",
     shortageApplicable: rule.shortageApplicable,
     shortageAllowanceType: rule.shortageAllowanceType,
     shortageAllowanceValue: rule.shortageAllowanceValue ?? "",
@@ -74,7 +74,7 @@ function ruleToForm(rule: CustomerRule | null): RuleFormState {
 function formToPayload(partyId: string, form: RuleFormState): object {
   return {
     partyId,
-    freightBasis: form.freightBasis,
+    freightBasis: form.freightBasis || "AUTO_SHORTAGE_BASED",
     shortageApplicable: form.shortageApplicable,
     shortageAllowanceType: form.shortageApplicable ? form.shortageAllowanceType : null,
     shortageAllowanceValue:
@@ -208,35 +208,6 @@ function RuleEditor({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      {/* ── Freight Basis ── */}
-      <div className="card">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">
-          Freight Calculation Basis
-        </h3>
-        <RadioGroup
-          label=""
-          value={form.freightBasis}
-          onChange={(v) => set("freightBasis", v)}
-          options={[
-            {
-              value: "R_WEIGHT",
-              label: "R-Weight × Rate",
-              desc: "Received/unloaded weight × freight rate per ton",
-            },
-            {
-              value: "N_WEIGHT",
-              label: "N-Weight × Rate",
-              desc: "Net/loading weight × freight rate per ton",
-            },
-            {
-              value: "FIXED",
-              label: "Fixed Per Trip",
-              desc: "Fixed freight amount regardless of weight",
-            },
-          ]}
-        />
-      </div>
-
       {/* ── Shortage ── */}
       <div className="card">
         <div className="flex items-center justify-between mb-3">
@@ -318,31 +289,7 @@ function RuleEditor({
                 disabled={!form.shortageApplicable}
               />
             </Field>
-            <Field
-              label="Material Rate per Ton (₹)"
-              hint="Used for shortage debit valuation — NOT freight rate"
-            >
-              <input
-                type="number"
-                id="shortage-material-rate"
-                step="0.01"
-                min="0"
-                value={form.materialRatePerTon}
-                onChange={(e) => set("materialRatePerTon", e.target.value)}
-                placeholder="e.g. 3500.00"
-                className="form-input"
-                disabled={!form.shortageApplicable}
-              />
-            </Field>
           </FormGrid>
-
-          <div className="mt-2 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-            <Info size={12} className="flex-shrink-0 mt-0.5" />
-            <span>
-              Shortage = N-Weight (loading) − R-Weight (unloading).
-              Debit = Applicable Shortage × <strong>Material Rate</strong> (not freight rate).
-            </span>
-          </div>
         </div>
       </div>
 
@@ -381,7 +328,7 @@ function RuleEditor({
             </Field>
             <Field
               label="TDS Rate (%)"
-              hint="Applied on Gross Bill Amount"
+              hint="Applied on Amount After Shortage"
             >
               <input
                 type="number"
@@ -398,9 +345,9 @@ function RuleEditor({
             </Field>
           </FormGrid>
           <p className="text-xs text-gray-400 mt-2">
-            TDS is calculated on the <strong>Gross Bill Amount</strong>{" "}
-            (e.g. ₹1,00,000 × 1% = ₹1,000). It is recorded at bill creation and
-            recalculated on bill edits.
+            TDS is calculated after deduction of applicable Shortage Debit
+            (e.g. ₹1,00,000 Gross − ₹5,000 Shortage = ₹95,000 TDS Base × 1% = ₹950).
+            It is recorded at bill creation and recalculated on bill edits.
           </p>
         </div>
       </div>
@@ -479,7 +426,7 @@ export default function CustomerRulesPage() {
     <div className="animate-fade-in">
       <PageHeader
         title="Customer Rules"
-        subtitle="Per-party freight, shortage, and TDS configuration"
+        subtitle="Per-customer shortage and TDS rules."
         breadcrumbs={[{ label: "Masters" }, { label: "Customer Rules" }]}
       />
 
@@ -508,7 +455,7 @@ export default function CustomerRulesPage() {
                 placeholder="Search parties…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="form-input pl-6 py-1.5 text-xs"
+                className="form-input search-input py-1.5 text-xs"
                 id="customer-rules-party-search"
               />
             </div>

@@ -10,7 +10,8 @@ export type LedgerVoucherType =
   | "PAYMENT_BANK"
   | "PAYMENT_CASH"
   | "ADVANCE_RECEIPT"
-  | "ADJUSTMENT";
+  | "ADJUSTMENT"
+  | "DRIVER_VOUCHER_DEDUCTION";
 
 export interface LedgerTransactionInput {
   entryType: LedgerEntryType;
@@ -51,6 +52,7 @@ export function calculateLedgerRunningBalance(
  *   - TRANSPORTATION_CHARGES_RCM (Freight Bill) -> CREDIT
  *   - DEBIT_NOTE_RCM (Shortage Debit) -> DEBIT
  *   - TDS_JOURNAL (TDS deduction) -> DEBIT
+ *   - DRIVER_VOUCHER_DEDUCTION (Driver Voucher deduction) -> DEBIT
  *   - PAYMENT_BANK / PAYMENT_CASH -> DEBIT
  */
 export function getStandardEntryTypeForVoucher(voucherType: LedgerVoucherType): LedgerEntryType {
@@ -59,6 +61,7 @@ export function getStandardEntryTypeForVoucher(voucherType: LedgerVoucherType): 
       return "CREDIT";
     case "DEBIT_NOTE_RCM":
     case "TDS_JOURNAL":
+    case "DRIVER_VOUCHER_DEDUCTION":
     case "PAYMENT_BANK":
     case "PAYMENT_CASH":
       return "DEBIT";

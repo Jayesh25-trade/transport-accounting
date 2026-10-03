@@ -65,6 +65,8 @@ interface UseMutationResult {
   submitError: string | null;
   create: (body: unknown) => Promise<boolean>;
   update: (id: string, body: unknown) => Promise<boolean>;
+  remove: (id: string) => Promise<boolean>;
+  toggleStatus: (id: string, isActive: boolean) => Promise<boolean>;
 }
 
 export function useMasterMutation(endpoint: string): UseMutationResult {
@@ -100,5 +102,33 @@ export function useMasterMutation(endpoint: string): UseMutationResult {
     }
   }
 
-  return { submitting, submitError, create, update };
+  async function remove(id: string): Promise<boolean> {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await api.del(`${endpoint}/${id}`);
+      return true;
+    } catch (err: any) {
+      setSubmitError(err instanceof ApiError ? err.message : "Delete failed");
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function toggleStatus(id: string, isActive: boolean): Promise<boolean> {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await api.put(`${endpoint}/${id}`, { isActive });
+      return true;
+    } catch (err: any) {
+      setSubmitError(err instanceof ApiError ? err.message : "Status update failed");
+      return false;
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return { submitting, submitError, create, update, remove, toggleStatus };
 }

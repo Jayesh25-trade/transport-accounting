@@ -1,5 +1,5 @@
 import { MoneyMath, WeightMath } from "../lib/decimal";
-import { BillEditValidationError, DomainValidationError } from "../lib/errors";
+import { BillEditValidationError } from "../lib/errors";
 
 export interface BillItemSummaryInput {
   freight: number | string;
@@ -13,6 +13,8 @@ export interface BillTotalsInput {
   tdsAmount: number | string;
   debitNoteAmount?: number | string | null;
   receivedAmount?: number | string | null;
+  // CONFIRMED BUSINESS RULE: Driver Voucher (advance+cash+diesel+ac) deducted from final payable.
+  driverVoucherTotal?: number | string | null;
 }
 
 export interface BillTotalsResult {
@@ -22,13 +24,22 @@ export interface BillTotalsResult {
   totalShortageDebit: number;
   tdsAmount: number;
   debitNoteAmount: number;
-  netBillAmount: number;     // subtotalFreight - tdsAmount - debitNoteAmount (or shortage debit)
+  driverVoucherTotal: number; // CONFIRMED: DV deduction snapshotted on bill
+  netBillAmount: number;      // Gross - Shortage - TDS - DriverVoucher
   receivedAmount: number;
-  pendingAmount: number;    // netBillAmount - receivedAmount
+  pendingAmount: number;      // netBillAmount - receivedAmount
 }
 
 /**
  * Calculates complete bill totals and validates outstanding balance integrity.
+ *
+ * CONFIRMED CALCULATION FLOW (client confirmed):
+ *   1. subtotalFreight = SUM(trip freight)                    [based on freight basis]
+ *   2. totalShortageDebit = SUM(trip shortage debit)          [customer rule]
+ *   3. amountAfterShortage = subtotalFreight - totalShortageDebit
+ *   4. tdsAmount = amountAfterShortage × tds%                 [on shortage-reduced base]
+ *   5. driverVoucherTotal = SUM(advance + cash + diesel + ac) [per trip]
+ *   6. netBillAmount = subtotalFreight - totalShortageDebit - tdsAmount - driverVoucherTotal
  */
 export function calculateBillTotals(input: BillTotalsInput): BillTotalsResult {
   let totalNWeight = 0;
@@ -47,16 +58,18 @@ export function calculateBillTotals(input: BillTotalsInput): BillTotalsResult {
   // Debit note amount is either explicitly provided or derived from total shortage debits
   const debitNoteAmount = MoneyMath.round(input.debitNoteAmount ?? totalShortageDebit);
   const receivedAmount = MoneyMath.round(input.receivedAmount ?? 0);
+  // CONFIRMED: Driver Voucher deduction from net payable
+  const driverVoucherTotal = MoneyMath.round(input.driverVoucherTotal ?? 0);
 
-  // Net Bill Amount = Subtotal Freight - TDS Amount - Debit Note Amount
-  const netBillAmount = MoneyMath.subtract(
-    subtotalFreight,
-    MoneyMath.add([tdsAmount, debitNoteAmount])
+  // CONFIRMED FORMULA: Net = Gross - Shortage - TDS - DriverVoucher
+  // Clamp to 0 if total deductions exceed gross freight.
+  const netBillAmount = Math.max(
+    0,
+    MoneyMath.subtract(
+      subtotalFreight,
+      MoneyMath.add([tdsAmount, debitNoteAmount, driverVoucherTotal])
+    )
   );
-
-  if (netBillAmount < 0) {
-    throw new DomainValidationError("Net bill amount cannot be negative");
-  }
 
   // Pending Amount = Net Bill Amount - Received Amount
   const pendingAmount = MoneyMath.subtract(netBillAmount, receivedAmount);
@@ -68,6 +81,7 @@ export function calculateBillTotals(input: BillTotalsInput): BillTotalsResult {
     totalShortageDebit,
     tdsAmount,
     debitNoteAmount,
+    driverVoucherTotal,
     netBillAmount,
     receivedAmount,
     pendingAmount,

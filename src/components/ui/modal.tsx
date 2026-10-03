@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,11 @@ interface ModalProps {
 
 export function Modal({ open, onClose, title, children, size = "md" }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close on Escape
   useEffect(() => {
@@ -35,12 +41,12 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
@@ -50,7 +56,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
     >
       <div
         className={cn(
-          "relative bg-white border border-[#D8D5CE] text-[#1A1D20] rounded-2xl shadow-2xl flex flex-col max-h-[85vh] w-full animate-fade-in my-auto",
+          "relative bg-white border border-[#D8D5CE] text-[#1A1D20] rounded-2xl shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[85vh] w-full animate-fade-in my-auto shrink-0",
           size === "sm" && "max-w-md",
           size === "md" && "max-w-xl",
           size === "lg" && "max-w-3xl",
@@ -76,7 +82,8 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
         {/* Body */}
         <div className="overflow-y-auto flex-1 p-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

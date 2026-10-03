@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 import { type PgTransaction } from "drizzle-orm/pg-core";
 import { type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { ledgerTransactions, openingBalances } from "../db/schema";
@@ -19,6 +19,7 @@ export interface PostLedgerEntryInput {
   sourceEntityId?: string | null;
   notes?: string | null;
   userId?: string | null;
+  overridePreviousBalance?: number;
 }
 
 /**
@@ -30,12 +31,31 @@ export async function getLatestLedgerRunningBalance(
   firmId: string,
   partyId: string
 ): Promise<number> {
-  // Get latest transaction by date/created_at
+  const voucherRankDesc = sql`
+    CASE ${ledgerTransactions.voucherType}
+      WHEN 'OPENING_BALANCE' THEN 7
+      WHEN 'PAYMENT_BANK' THEN 1
+      WHEN 'PAYMENT_CASH' THEN 1
+      WHEN 'ADVANCE_RECEIPT' THEN 1
+      WHEN 'DRIVER_VOUCHER_DEDUCTION' THEN 2
+      WHEN 'DEBIT_NOTE_RCM' THEN 3
+      WHEN 'TDS_JOURNAL' THEN 4
+      WHEN 'TRANSPORTATION_CHARGES_RCM' THEN 5
+      ELSE 6
+    END
+  `;
+
+  // Get latest transaction by date/created_at/voucher rank/id
   const latestTx = await tx
     .select({ runningBalance: ledgerTransactions.runningBalance })
     .from(ledgerTransactions)
     .where(and(eq(ledgerTransactions.firmId, firmId), eq(ledgerTransactions.partyId, partyId)))
-    .orderBy(desc(ledgerTransactions.transactionDate), desc(ledgerTransactions.createdAt))
+    .orderBy(
+      desc(ledgerTransactions.transactionDate),
+      desc(ledgerTransactions.createdAt),
+      asc(voucherRankDesc),
+      desc(ledgerTransactions.id)
+    )
     .limit(1);
 
   if (latestTx.length > 0) {
@@ -65,7 +85,9 @@ export async function postLedgerEntry(
   tx: PgTransaction<any, any, any>,
   input: PostLedgerEntryInput
 ) {
-  const previousBalance = await getLatestLedgerRunningBalance(tx, input.firmId, input.partyId);
+  const previousBalance = input.overridePreviousBalance !== undefined
+    ? input.overridePreviousBalance
+    : await getLatestLedgerRunningBalance(tx, input.firmId, input.partyId);
 
   const entryType = input.entryType || getStandardEntryTypeForVoucher(input.voucherType);
   const debitAmount = MoneyMath.round(input.debitAmount ?? 0);
@@ -143,10 +165,29 @@ export async function listLedgerTransactions(
     );
   }
 
+  const voucherRankAsc = sql`
+    CASE ${ledgerTransactions.voucherType}
+      WHEN 'OPENING_BALANCE' THEN 1
+      WHEN 'TRANSPORTATION_CHARGES_RCM' THEN 2
+      WHEN 'TDS_JOURNAL' THEN 3
+      WHEN 'DEBIT_NOTE_RCM' THEN 4
+      WHEN 'DRIVER_VOUCHER_DEDUCTION' THEN 5
+      WHEN 'PAYMENT_BANK' THEN 6
+      WHEN 'PAYMENT_CASH' THEN 6
+      WHEN 'ADVANCE_RECEIPT' THEN 6
+      ELSE 7
+    END
+  `;
+
   return await db
     .select()
     .from(ledgerTransactions)
     .where(and(...conditions))
-    .orderBy(ledgerTransactions.transactionDate, ledgerTransactions.createdAt);
+    .orderBy(
+      ledgerTransactions.transactionDate,
+      ledgerTransactions.createdAt,
+      asc(voucherRankAsc),
+      ledgerTransactions.id
+    );
 }
 

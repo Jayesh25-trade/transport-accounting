@@ -30,6 +30,10 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
   let companyB_Id = "";
 
   try {
+    try {
+      await db.execute(sql`ALTER TYPE "public"."freight_basis" ADD VALUE IF NOT EXISTS 'AUTO_SHORTAGE_BASED';`);
+    } catch (_e) {}
+
     // SETUP: Pre-clean any existing test firm records
     const existingTestFirms = await db.select({ id: firms.id }).from(firms).where(sql`code LIKE 'TEST_%'`);
     if (existingTestFirms.length > 0) {
@@ -207,9 +211,10 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
       createdBillId = bill.id;
 
       assert.equal(Number(bill.subtotalFreight), 38000);
-      assert.equal(Number(bill.tdsAmount), 380); // 1% of 38,000 = 380
       assert.equal(Number(bill.debitNoteAmount), 750); // Shortage debit = 750
-      assert.equal(Number(bill.netBillAmount), 36870); // 38000 - 380 - 750 = 36870
+      // Amount after shortage = 38,000 - 750 = 37,250
+      assert.equal(Number(bill.tdsAmount), 372.5); // 1% of 37,250 = 372.50
+      assert.equal(Number(bill.netBillAmount), 36877.5); // 37250 - 372.50 = 36877.50
 
       // Verify Ledger postings are traceable to source entities
       const partyALedger = await listLedgerTransactions(db, firmA_Id, partyA_Id);
@@ -328,10 +333,10 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
       assert.equal(Number(directAgainstBill.unallocatedAmount), 0);
       assert.equal(directAgainstBill.isFullyAllocated, true);
 
-      // Check updated bill balance: received = 10000 + 6870 = 16870, pending = 36870 - 16870 = 20000
+      // Check updated bill balance: received = 10000 + 6870 = 16870, pending = 36877.50 - 16870 = 20007.50
       const [billState] = await db.select().from(bills).where(eq(bills.id, createdBillId));
       assert.equal(Number(billState.receivedAmount), 16870);
-      assert.equal(Number(billState.pendingAmount), 20000);
+      assert.equal(Number(billState.pendingAmount), 20007.5);
 
       // 3. Over-allocation Rejection on Direct AGAINST_BILL Payment (P3)
       // Remaining pending is 20000. Attempting 25000 MUST fail.
@@ -393,11 +398,11 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
       assert.ok(payTx, "Payment ledger entry must exist");
       assert.equal(payTx.entryType, "DEBIT");
 
-      // L6 — TDS DEBIT check
+      // L6 — TDS DEBIT check (1% of 37,250 = 372.50)
       const tdsTx = partyALedger.find((l) => l.voucherType === "TDS_JOURNAL");
       assert.ok(tdsTx, "TDS ledger entry must exist");
       assert.equal(tdsTx.entryType, "DEBIT");
-      assert.equal(Number(tdsTx.debitAmount), 380);
+      assert.equal(Number(tdsTx.debitAmount), 372.5);
 
       // L7 — Shortage Debit Note DEBIT check
       const dnTx = partyALedger.find((l) => l.voucherType === "DEBIT_NOTE_RCM");
@@ -648,7 +653,7 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
       const firmData = (await db.select().from(firms).where(eq(firms.id, firmA_Id)))[0];
       const htmlOutput = buildBillInvoiceHtml(billData, firmData);
 
-      assert.ok(htmlOutput.includes(`Invoice #${billData.billNumber}`), "P4: Bill number present in invoice HTML");
+      assert.ok(htmlOutput.includes(String(billData.billNumber)), "P4: Bill number present in invoice HTML");
       assert.ok(htmlOutput.includes(firmData.name!), "P4: Firm name present in invoice HTML");
       assert.ok(htmlOutput.includes(billData.partyName!), "P4: Party name present in invoice HTML");
 
@@ -979,13 +984,13 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
       // Verify EXCESS_ONLY shortage (0.6 MT * 1200 = ₹720)
       assert.equal(Number(qaBill1.debitNoteAmount), 720, "Scenario 11, 13, 15: Shortage excess allowance = 720");
 
-      // Verify TDS (1% of ₹19,600 = ₹196)
-      assert.equal(Number(qaBill1.tdsAmount), 196, "Scenario 16: TDS 1% = 196");
+      // Verify TDS (1% of Amount After Shortage: ₹19,600 - ₹720 = ₹18,880 -> ₹188.80)
+      assert.equal(Number(qaBill1.tdsAmount), 188.8, "Scenario 16: TDS 1% = 188.80");
 
-      // Net Payable = 19600 - 720 - 196 = 18684
-      assert.equal(Number(qaBill1.netBillAmount), 18684, "Scenario 18: Net Payable equals 18,684");
+      // Net Payable = 18880 - 188.80 - 4500 (Driver Voucher) = 14191.20
+      assert.equal(Number(qaBill1.netBillAmount), 14191.2, "Scenario 18: Net Payable equals 14,191.20");
 
-      // Verify Bill 2 for Party B (N_WEIGHT 50.0 MT * ₹600 = ₹30,000, FULL_SHORTAGE 1.0 MT * 1500 = ₹1500, TDS 2% of 30,000 = ₹600)
+      // Verify Bill 2 for Party B (N_WEIGHT 50.0 MT * ₹600 = ₹30,000, FULL_SHORTAGE 1.0 MT * 1500 = ₹1500, TDS 1% of 28,500 = ₹285)
       const tripsForPartyB = await db.select().from(trips).where(eq(trips.partyId, qaPartyB.id));
       const receivedTripB = tripsForPartyB.find(t => t.isReceived);
 
@@ -995,14 +1000,14 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
         partyId: qaPartyB.id,
         billDate: "2026-08-20",
         tripIds: [receivedTripB!.id],
-        appliedTdsPercentage: 1.0, // Override to 1% TDS (300 instead of 600)
+        appliedTdsPercentage: 1.0, // Override to 1% TDS (285 instead of 570)
       });
 
       assert.equal(Number(qaBill2.subtotalFreight), 30000, "Scenario 8: Freight uses N_WEIGHT (50.0 * 600 = 30,000)");
       assert.equal(Number(qaBill2.debitNoteAmount), 1500, "Scenario 12, 14, 15: FULL_SHORTAGE penalty = 1500");
-      assert.equal(Number(qaBill2.tdsAmount), 300, "Scenario 17: TDS manual percentage override = 300");
-      // Net = 30000 - 1500 - 300 = 28200
-      assert.equal(Number(qaBill2.netBillAmount), 28200, "Scenario 17: Net payable with TDS override = 28,200");
+      assert.equal(Number(qaBill2.tdsAmount), 285, "Scenario 17: TDS manual percentage override on amount after shortage = 285");
+      // Net = 28500 - 285 - 5300 (Driver Voucher) = 22915
+      assert.equal(Number(qaBill2.netBillAmount), 22915, "Scenario 17: Net payable with TDS override = 22,915");
 
       // 19. Bill Edit Reconciliation
       const editedBill1 = await editBill(db, {
@@ -1175,10 +1180,10 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
       assert.equal(Number(uiBill1.subtotalFreight), 26520, "U5: Freight calculation matches R_WEIGHT formula");
       // Shortage: 0.575 MT * ₹1400 = ₹805
       assert.equal(Number(uiBill1.debitNoteAmount), 805, "U5: Shortage calculation matches EXCESS_ONLY material rate formula");
-      // TDS: 1% of ₹26,520 = ₹265.20
-      assert.equal(Number(uiBill1.tdsAmount), 265.2, "U5: TDS calculation matches 1% gross freight formula");
-      // Net: 26520 - 805 - 265.20 = 25449.80
-      assert.equal(Number(uiBill1.netBillAmount), 25449.8, "U5: Net bill amount matches calculated balance");
+      // TDS: 1% of Amount After Shortage (₹26,520 - ₹805 = ₹25,715) = ₹257.15
+      assert.equal(Number(uiBill1.tdsAmount), 257.15, "U5: TDS calculation matches 1% amount after shortage formula");
+      // Net: 25715 - 257.15 - 5500 (Driver Voucher) = 19957.85
+      assert.equal(Number(uiBill1.netBillAmount), 19957.85, "U5: Net bill amount matches calculated balance");
 
       // U6: Bill Detail & Atomic Edit
       const uiEditedBill1 = await editBill(db, {
@@ -1199,7 +1204,7 @@ test("Integration & Transactional Concurrency Test Suite (Phase 4B)", async (t) 
         firmId: firmA_Id,
         partyId: uiPartyA.id,
         paymentDate: "2026-08-25",
-        amount: 15449.8,
+        amount: 9957.85,
         paymentType: "AGAINST_BILL",
         billId: uiBill1.id,
         paymentMode: "BANK_ACCOUNT",

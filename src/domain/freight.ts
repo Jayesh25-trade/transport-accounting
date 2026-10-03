@@ -1,7 +1,7 @@
 import { WeightMath, MoneyMath, RateMath } from "../lib/decimal";
 import { DomainValidationError } from "../lib/errors";
 
-export type FreightBasis = "R_WEIGHT" | "N_WEIGHT" | "FIXED";
+export type FreightBasis = "R_WEIGHT" | "N_WEIGHT" | "FIXED" | "AUTO_SHORTAGE_BASED";
 
 export interface FreightCalculationInput {
   freightBasis: FreightBasis;
@@ -9,6 +9,8 @@ export interface FreightCalculationInput {
   nWeight?: number | string | null;
   rWeight?: number | string | null;
   fixedFreightAmount?: number | string | null;
+  applicableShortageDebit?: number | string | null;
+  shortageDebitAmount?: number | string | null;
 }
 
 export interface FreightCalculationResult {
@@ -23,6 +25,7 @@ export interface FreightCalculationResult {
  *   - R_WEIGHT: Billed Freight = R-Weight × Rate
  *   - N_WEIGHT: Billed Freight = N-Weight × Rate
  *   - FIXED: Billed Freight = Fixed Amount
+ *   - AUTO_SHORTAGE_BASED: Billed Freight = N-Weight × Rate if shortage debit = 0, R-Weight × Rate if shortage debit > 0
  */
 export function calculateFreight(input: FreightCalculationInput): FreightCalculationResult {
   const rateApplied = RateMath.round(input.rate ?? 0);
@@ -45,8 +48,14 @@ export function calculateFreight(input: FreightCalculationInput): FreightCalcula
       return { billedWeight, rateApplied, freightAmount };
     }
     case "FIXED": {
-      const fixedAmount = MoneyMath.round(input.fixedFreightAmount ?? 0);
+      const fixedAmount = MoneyMath.round(input.fixedFreightAmount ?? input.rate ?? 0);
       return { billedWeight: 0, rateApplied, freightAmount: fixedAmount };
+    }
+    case "AUTO_SHORTAGE_BASED": {
+      const shortageDebit = MoneyMath.round(input.applicableShortageDebit ?? input.shortageDebitAmount ?? 0);
+      const billedWeight = shortageDebit > 0 ? rWeight : nWeight;
+      const freightAmount = MoneyMath.multiply(billedWeight, rateApplied);
+      return { billedWeight, rateApplied, freightAmount };
     }
     default:
       throw new DomainValidationError(`Unsupported freight basis '${input.freightBasis}'`);

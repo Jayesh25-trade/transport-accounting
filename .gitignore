@@ -52,3 +52,13 @@ backups/
 
 # OS
 Thumbs.db
+
+# Visual QA artifacts & temporary previews
+ui-qa/
+appshell_parity_screenshots/
+dashboard_visual_review_screenshots/
+live_mobile_sidebar_verification/
+mobile_sidebar_verification/
+local_bill1_*
+phase-4c-2*.md
+

@@ -45,6 +45,7 @@ export const freightBasisEnum = pgEnum("freight_basis", [
   "R_WEIGHT",  // Received Weight × Rate
   "N_WEIGHT",  // Net/Loading Weight × Rate
   "FIXED",     // Fixed amount per trip
+  "AUTO_SHORTAGE_BASED", // N-Weight if Shortage=0, R-Weight if Shortage>0
 ]);
 
 // Shortage allowance types

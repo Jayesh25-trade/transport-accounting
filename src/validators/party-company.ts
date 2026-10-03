@@ -28,7 +28,7 @@ export const companyInputSchema = z.object({
 export const customerRuleInputSchema = z.object({
   firmId: z.string().uuid("Firm ID is required"),
   partyId: z.string().uuid("Party ID is required"),
-  freightBasis: z.enum(["R_WEIGHT", "N_WEIGHT", "FIXED"]).default("R_WEIGHT"),
+  freightBasis: z.enum(["R_WEIGHT", "N_WEIGHT", "FIXED", "AUTO_SHORTAGE_BASED"]).default("AUTO_SHORTAGE_BASED"),
   shortageApplicable: z.boolean().default(false),
   shortageAllowanceType: z.enum(["PERCENTAGE", "FIXED_KG"]).optional().nullable(),
   shortageAllowanceValue: z.number().nonnegative("Allowance value cannot be negative").optional().nullable(),

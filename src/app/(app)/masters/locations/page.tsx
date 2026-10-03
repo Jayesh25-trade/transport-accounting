@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Plus, Search, Pencil, MapPin } from "lucide-react";
+import { Plus, Search, Pencil, MapPin, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button, Badge, EmptyState } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/ui/data-table";
@@ -127,7 +127,7 @@ export default function LocationsPage() {
   const { data: locations, loading, error, refresh } = useMasterList<LocationRecord>({
     endpoint: "/api/locations",
   });
-  const { submitting, submitError, create, update } = useMasterMutation("/api/locations");
+  const { submitting, submitError, create, update, remove, toggleStatus } = useMasterMutation("/api/locations");
 
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<
@@ -190,13 +190,42 @@ export default function LocationsPage() {
       key: "actions",
       label: "",
       render: (l) => (
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={(e) => { e.stopPropagation(); setModal({ mode: "edit", location: l }); }}
-          id={`location-edit-${l.id}`}
-        >
-          <Pencil size={13} />
-        </button>
+        <div className="flex items-center gap-1 justify-end">
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={(e) => { e.stopPropagation(); setModal({ mode: "edit", location: l }); }}
+            id={`location-edit-${l.id}`}
+            title="Edit location"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            className="btn btn-ghost btn-sm text-gray-500 hover:text-amber-600"
+            onClick={async (e) => {
+              e.stopPropagation();
+              await toggleStatus(l.id, !l.isActive);
+              refresh();
+            }}
+            id={`location-toggle-${l.id}`}
+            title={l.isActive ? "Deactivate location" : "Activate location"}
+          >
+            <span className="text-xs font-semibold">{l.isActive ? "Deactivate" : "Activate"}</span>
+          </button>
+          <button
+            className="btn btn-ghost btn-sm text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (window.confirm(`Are you sure you want to delete location "${l.name}"?`)) {
+                const ok = await remove(l.id);
+                if (ok) refresh();
+              }
+            }}
+            id={`location-delete-${l.id}`}
+            title="Delete location"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
       ),
     },
   ];
@@ -207,11 +236,11 @@ export default function LocationsPage() {
     <div className="animate-fade-in">
       <PageHeader
         title="Locations"
-        subtitle="Loading & unloading points — firm-scoped"
+        subtitle="Loading and unloading points."
         breadcrumbs={[{ label: "Masters" }, { label: "Locations" }]}
         actions={
           <Button
-            variant="primary"
+            variant="coral"
             size="sm"
             icon={Plus}
             onClick={() => setModal({ mode: "create" })}
@@ -237,7 +266,7 @@ export default function LocationsPage() {
             placeholder="Search by name or state…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="form-input pl-8"
+            className="form-input search-input"
             id="locations-search"
           />
         </div>

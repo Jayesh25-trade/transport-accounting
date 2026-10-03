@@ -9,7 +9,7 @@ import { useApiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   FileText,
-  DollarSign,
+  IndianRupee,
   CreditCard,
   Clock,
   Printer,
@@ -239,7 +239,7 @@ export default function OutstandingReportPage() {
               label="Total Outstanding"
               value={formatCurrency(data?.summary.totalOutstanding ?? 0)}
               sub="Uncollected bill balance"
-              icon={DollarSign}
+              icon={IndianRupee}
               iconColor="#ef4444"
             />
             <StatCard
@@ -274,9 +274,6 @@ export default function OutstandingReportPage() {
             <FileText size={16} className="text-indigo-500" />
             Outstanding Bills ({data?.bills.length ?? 0})
           </h3>
-          <span className="text-xs text-gray-400">
-            Read-Only Reporting View
-          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -286,7 +283,7 @@ export default function OutstandingReportPage() {
                 <th className="p-3">Party Name</th>
                 <th className="p-3">Bill No</th>
                 <th className="p-3">Bill Date</th>
-                <th className="p-3 text-right">Gross Amt</th>
+                <th className="p-3 text-right">Gross amount</th>
                 <th className="p-3 text-right">Shortage</th>
                 <th className="p-3 text-right">TDS</th>
                 <th className="p-3 text-right">Net Bill</th>
