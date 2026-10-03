@@ -8,8 +8,9 @@ import {
   Building2, Users, FileText, Shield, Download, History,
   UserPlus, RefreshCw, X, ChevronLeft, ChevronRight,
   Eye, EyeOff, CheckCircle2, AlertCircle, Lock, Pencil,
-  Plus, ToggleLeft, ToggleRight, AlertTriangle,
+  Plus, ToggleLeft, ToggleRight, AlertTriangle, LogOut, Monitor,
 } from "lucide-react";
+import { PwaInstallModal, usePwaInstall } from "@/components/pwa-install-modal";
 
 // ─── Helper ───────────────────────────────────────────────────
 function fmt(v?: string | null) { return v || "—"; }
@@ -607,12 +608,13 @@ function TeamMembersTab() {
 // ════════════════════════════════════════════════════════════════
 //  TAB 4 — SECURITY
 // ════════════════════════════════════════════════════════════════
-function SecurityTab() {
+function SecurityTab({ onOpenInstallModal }: { onOpenInstallModal?: () => void }) {
   const [form, setForm] = useState({ current: "", newPwd: "", confirm: "" });
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [alert, setAlert] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   async function handleChangePwd(e: React.FormEvent) {
@@ -634,8 +636,21 @@ function SecurityTab() {
     finally { setSaving(false); }
   }
 
+  async function handleLogout() {
+    if (!confirm("Are you sure you want to log out of your account?")) return;
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+    } finally {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+  }
+
   return (
-    <Section title="Security" icon={Shield}>
+    <Section title="Security & Account" icon={Shield}>
       {alert && <div className="mb-4"><AlertBanner type={alert.type} message={alert.msg} onClose={() => setAlert(null)} /></div>}
       <div className="max-w-md">
         <h3 className="text-sm font-bold text-[#1A1D20] mb-1">Change Password</h3>
@@ -668,6 +683,34 @@ function SecurityTab() {
             </Button>
           </div>
         </form>
+
+        <div className="mt-8 pt-5 border-t border-[#EFECE6]">
+          <h3 className="text-sm font-bold text-[#1A1D20] mb-1">Application Installation</h3>
+          <p className="text-xs text-[#5F6368] mb-3">Install this application on your computer or phone for quicker access.</p>
+          <Button
+            variant="coral"
+            size="sm"
+            onClick={onOpenInstallModal}
+            id="install-app-btn"
+          >
+            <Download size={14} className="mr-1.5" /> Install App
+          </Button>
+        </div>
+
+        <div className="mt-8 pt-5 border-t border-[#EFECE6]">
+          <h3 className="text-sm font-bold text-[#1A1D20] mb-1">Account Logout</h3>
+          <p className="text-xs text-[#5F6368] mb-3">Sign out of your active session on this device.</p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="text-red-600 border-red-200 hover:bg-red-50"
+            id="logout-btn"
+          >
+            <LogOut size={14} className="mr-1.5" /> {loggingOut ? "Logging out…" : "Logout"}
+          </Button>
+        </div>
 
         <div className="mt-8 pt-5 border-t border-[#EFECE6]">
           <h3 className="text-sm font-bold text-[#1A1D20] mb-1">Change Login Email</h3>
@@ -954,6 +997,8 @@ type TabId = typeof TABS[number]["id"];
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<TabId>("profile");
+  const [showPwaModal, setShowPwaModal] = useState(false);
+  const { deferredPrompt, isStandalone } = usePwaInstall();
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -961,6 +1006,18 @@ export default function SettingsPage() {
         title="Settings"
         subtitle="Manage your firm profile, team, security, and download reports"
         breadcrumbs={[{ label: "Settings" }]}
+        actions={
+          !isStandalone ? (
+            <Button
+              variant="coral"
+              size="sm"
+              onClick={() => setShowPwaModal(true)}
+              id="header-install-app-btn"
+            >
+              <Download size={14} className="mr-1.5" /> Install App
+            </Button>
+          ) : undefined
+        }
       />
 
       {/* Tab Bar */}
@@ -986,9 +1043,16 @@ export default function SettingsPage() {
       {tab === "profile" && <FirmProfileTab />}
       {tab === "firms" && <FirmManagementTab />}
       {tab === "team" && <TeamMembersTab />}
-      {tab === "security" && <SecurityTab />}
+      {tab === "security" && <SecurityTab onOpenInstallModal={() => setShowPwaModal(true)} />}
       {tab === "reports" && <ReportsTab />}
       {tab === "activity" && <ActivityHistoryTab />}
+
+      {/* PWA Installation Modal */}
+      <PwaInstallModal
+        isOpen={showPwaModal}
+        onClose={() => setShowPwaModal(false)}
+        deferredPrompt={deferredPrompt}
+      />
     </div>
   );
 }

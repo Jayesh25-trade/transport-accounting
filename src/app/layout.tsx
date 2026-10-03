@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   description:
     "Professional transport billing and accounting management for Deepraj & Shivsai Transport",
   keywords: ["transport", "billing", "accounting", "freight", "ERP"],
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

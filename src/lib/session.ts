@@ -16,8 +16,8 @@ export const COOKIE_NAME = "__Host-session";
 // In development, fall back to "session" if non-HTTPS localhost prevents __Host- prefix
 export const COOKIE_KEY = process.env.NODE_ENV === "production" ? "__Host-session" : "session";
 
-const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000; // 8 hours
-const ABSOLUTE_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
+const IDLE_TIMEOUT_MS = 30 * 24 * 60 * 60 * 1000; // 30 days persistent login
+const ABSOLUTE_TIMEOUT_MS = 90 * 24 * 60 * 60 * 1000; // 90 days max session lifetime
 
 export interface AuthenticatedUserSession {
   session: typeof sessions.$inferSelect;
@@ -145,7 +145,7 @@ export async function validateRequestSession(
 
   if (!sessionRecord) return null;
 
-  // Verify absolute lifetime (24h from creation)
+  // Verify absolute lifetime (90d from creation)
   const createdAtMs = new Date(sessionRecord.createdAt).getTime();
   if (now.getTime() - createdAtMs > ABSOLUTE_TIMEOUT_MS) {
     await revokeSessionByHash(tokenHash);
@@ -179,10 +179,20 @@ export async function validateRequestSession(
     ? memberships.map(m => ({ firmId: m.firmId, role: m.role }))
     : [{ firmId: userRecord.firmId, role: userRecord.role }];
 
-  // Update last seen timestamp
+  // Sliding window extension: if session expires in < 15 days, extend by 30 days
+  const remainingMs = new Date(sessionRecord.expiresAt).getTime() - now.getTime();
+  const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
+  let newExpiresAt = sessionRecord.expiresAt;
+
+  if (remainingMs < FIFTEEN_DAYS_MS) {
+    newExpiresAt = new Date(now.getTime() + IDLE_TIMEOUT_MS);
+    await setSessionCookie(rawToken, newExpiresAt);
+  }
+
+  // Update last seen and extended expiration in database
   await db
     .update(sessions)
-    .set({ lastSeenAt: now })
+    .set({ lastSeenAt: now, expiresAt: newExpiresAt })
     .where(eq(sessions.id, sessionRecord.id));
 
   return {
