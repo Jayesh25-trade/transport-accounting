@@ -18,6 +18,73 @@ export function buildBillInvoiceHtml(bill: any, firm: any): string {
 }
 
 /**
+ * Shared serverless-safe Puppeteer browser launcher.
+ */
+async function launchPdfBrowser() {
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+  if (isServerless) {
+    const chromium = (await import("@sparticuz/chromium")).default as any;
+    const puppeteerCore = (await import("puppeteer-core")).default as any;
+
+    if (typeof chromium.setGraphicsMode === "function") {
+      chromium.setGraphicsMode = false;
+    }
+
+    try {
+      const execPath = await chromium.executablePath();
+      return await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: execPath,
+        headless: chromium.headless,
+      });
+    } catch (err: any) {
+      console.warn("[PDF_SERVICE] Primary chromium executablePath launch failed, attempting fallback pack tarball:", err?.message || err);
+      const remoteExecPath = await chromium.executablePath(
+        "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar"
+      );
+      return await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: remoteExecPath,
+        headless: chromium.headless,
+      });
+    }
+  } else {
+    let puppeteer;
+    try {
+      puppeteer = (await import("puppeteer")).default;
+    } catch {
+      puppeteer = (await import("puppeteer-core")).default;
+    }
+    return await (puppeteer as any).launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    });
+  }
+}
+
+/**
+ * Generates raw HTML string for a bill invoice.
+ */
+export async function generateBillPdfHtml(
+  db: NodePgDatabase<any>,
+  firmId: string,
+  billId: string
+): Promise<string> {
+  const bill = await getBillById(db, billId, firmId);
+  if (!bill) throw new EntityNotFoundError("Bill", billId);
+
+  const firmRows = await db.select().from(firms).where(eq(firms.id, firmId)).limit(1);
+  if (firmRows.length === 0) throw new EntityNotFoundError("Firm", firmId);
+  const firm = firmRows[0];
+
+  return buildBillInvoiceHtml(bill, firm);
+}
+
+
+/**
  * Renders server-side PDF buffer for a bill using Puppeteer.
  * Supports Vercel Serverless environment via @sparticuz/chromium and puppeteer-core.
  * Enforces firm isolation and consumes stored authoritative domain values.
@@ -51,44 +118,7 @@ export async function generateBillPdfBuffer(
   // 4. Render PDF with environment-aware Puppeteer launcher
   let browser = null;
   try {
-    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-
-    if (isServerless) {
-      const chromium = (await import("@sparticuz/chromium")).default as any;
-      const puppeteerCore = (await import("puppeteer-core")).default as any;
-
-      try {
-        const execPath = await chromium.executablePath();
-        browser = await puppeteerCore.launch({
-          args: chromium.args,
-          defaultViewport: chromium.defaultViewport,
-          executablePath: execPath,
-          headless: chromium.headless,
-        });
-      } catch (err: any) {
-        console.warn("[PDF_SERVICE] Primary chromium launch failed, falling back to release pack tarball:", err?.message || err);
-        const remoteExecPath = await chromium.executablePath(
-          "https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar"
-        );
-        browser = await puppeteerCore.launch({
-          args: chromium.args,
-          defaultViewport: chromium.defaultViewport,
-          executablePath: remoteExecPath,
-          headless: chromium.headless,
-        });
-      }
-    } else {
-      let puppeteer;
-      try {
-        puppeteer = (await import("puppeteer")).default;
-      } catch {
-        puppeteer = (await import("puppeteer-core")).default;
-      }
-      browser = await (puppeteer as any).launch({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-      });
-    }
+    browser = await launchPdfBrowser();
 
     const page = await (browser as any).newPage();
     await page.setContent(html, { waitUntil: "domcontentloaded" });
@@ -551,14 +581,14 @@ export function buildLedgerPdfHtml(
 
 
 /**
- * Generates a PDF Buffer for a party's ledger.
+ * Generates raw HTML string for a ledger statement.
  */
-export async function generateLedgerPdfBuffer(
+export async function generateLedgerPdfHtml(
   db: NodePgDatabase<any>,
   firmId: string,
   partyId: string,
   filters?: { dateFrom?: string; dateTo?: string; voucherType?: string; entryType?: string; search?: string }
-): Promise<Buffer> {
+): Promise<string> {
   const firmRows = await db.select().from(firms).where(eq(firms.id, firmId)).limit(1);
   if (firmRows.length === 0) throw new EntityNotFoundError("Firm", firmId);
   const firm = firmRows[0];
@@ -568,33 +598,23 @@ export async function generateLedgerPdfBuffer(
   const party = partyRows[0];
 
   const transactions = await listLedgerTransactions(db, firmId, partyId, filters);
-  const html = buildLedgerPdfHtml(transactions, party, firm, filters?.dateFrom, filters?.dateTo);
+  return buildLedgerPdfHtml(transactions, party, firm, filters?.dateFrom, filters?.dateTo);
+}
+
+/**
+ * Generates a PDF Buffer for a party's ledger.
+ */
+export async function generateLedgerPdfBuffer(
+  db: NodePgDatabase<any>,
+  firmId: string,
+  partyId: string,
+  filters?: { dateFrom?: string; dateTo?: string; voucherType?: string; entryType?: string; search?: string }
+): Promise<Buffer> {
+  const html = await generateLedgerPdfHtml(db, firmId, partyId, filters);
 
   let browser = null;
   try {
-    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-    if (isServerless) {
-      const chromium = (await import("@sparticuz/chromium")).default as any;
-      const puppeteerCore = (await import("puppeteer-core")).default as any;
-      const execPath = await chromium.executablePath();
-      browser = await puppeteerCore.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: execPath,
-        headless: chromium.headless,
-      });
-    } else {
-      let puppeteer;
-      try {
-        puppeteer = (await import("puppeteer")).default;
-      } catch {
-        puppeteer = (await import("puppeteer-core")).default;
-      }
-      browser = await (puppeteer as any).launch({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-      });
-    }
+    browser = await launchPdfBrowser();
 
     const page = await (browser as any).newPage();
     await page.setContent(html, { waitUntil: "domcontentloaded" });

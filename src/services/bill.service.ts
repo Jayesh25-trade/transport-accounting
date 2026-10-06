@@ -1,4 +1,4 @@
-import { sql, eq, and, inArray } from "drizzle-orm";
+import { sql, eq, and, inArray, desc } from "drizzle-orm";
 import { type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { bills, billItems, tdsEntries, debitNotes, trips, dailyEntries, driverVouchers, customerRules, ledgerTransactions, parties, bankAccounts, firmBillSettings } from "../db/schema";
 import { billCreateInputSchema, billEditInputSchema, type BillCreateInput, type BillEditInput } from "../validators/bill";
@@ -1012,7 +1012,7 @@ export async function listBills(db: NodePgDatabase<any>, firmId: string) {
     .from(bills)
     .leftJoin(parties, eq(bills.partyId, parties.id))
     .where(eq(bills.firmId, firmId))
-    .orderBy(sql`${bills.billNumber} DESC`);
+    .orderBy(desc(bills.billNumber));
 }
 
 export async function getBillById(db: NodePgDatabase<any>, billId: string, firmId: string) {

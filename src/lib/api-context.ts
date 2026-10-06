@@ -143,13 +143,16 @@ export function createApiHandler<T>(
         );
       }
 
-      // Log unexpected internal errors silently (sanitized)
-      console.error("[API_ERROR]", err?.message || err);
+      // Log unexpected internal errors
+      console.error("[API_ERROR]", err?.stack || err?.message || err);
 
       return NextResponse.json<ApiResponse>(
         {
           success: false,
-          error: { message: "An unexpected error occurred", code: "INTERNAL_SERVER_ERROR" },
+          error: {
+            message: err?.message || "An unexpected error occurred",
+            code: "INTERNAL_SERVER_ERROR",
+          },
         },
         { status: 500 }
       );
