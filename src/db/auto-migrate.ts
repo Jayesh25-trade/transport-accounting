@@ -1,10 +1,7 @@
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
 
-let isSynced = false;
-
 export async function ensureDbSchemaSynced() {
-  if (isSynced) return;
   try {
     // 1. bank_accounts table
     await db.execute(sql`
@@ -49,7 +46,7 @@ export async function ensureDbSchemaSynced() {
       )
     `);
 
-    // 3. Add columns to bills table individually to prevent multi-statement prepared statement errors in PostgreSQL
+    // 3. Add columns to bills table individually
     await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bank_account_id uuid REFERENCES bank_accounts(id) ON DELETE SET NULL`);
     await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bank_details_snapshot jsonb`);
     await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS payment_terms varchar(100)`);
@@ -79,10 +76,15 @@ export async function ensureDbSchemaSynced() {
       ON CONFLICT (id) DO NOTHING
     `);
 
-    isSynced = true;
+    // 6. Explicitly ensure default Deepraj Transport firm ID exists in firms table
+    await db.execute(sql`
+      INSERT INTO firms (id, name, code, is_active)
+      VALUES ('d4df3ccc-0146-401e-894d-c1af8140880e', 'Deepraj Transport', 'DEEPRAJ', true)
+      ON CONFLICT (id) DO NOTHING
+    `);
+
     console.log("[AutoMigrate] PostgreSQL schema successfully synchronized.");
   } catch (err: any) {
-    console.error("[AutoMigrate] Schema sync error:", err?.message || err);
-    throw err;
+    console.error("[AutoMigrate] Schema sync warning:", err?.message || err);
   }
 }
