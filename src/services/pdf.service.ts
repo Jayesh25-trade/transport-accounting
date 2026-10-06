@@ -116,8 +116,16 @@ export async function generateBillPdfBuffer(
   }
 }
 
+import {
+  cleanLedgerRow,
+  formatIndianCurrency,
+  formatLedgerDate,
+  sanitizeText,
+  stripSymbols,
+} from "../lib/ledger-pdf-formatter";
+
 /**
- * HTML builder for Ledger Statement PDF export.
+ * HTML builder for Ledger Statement PDF export (Black & White edition).
  */
 export function buildLedgerPdfHtml(
   transactions: any[],
@@ -126,43 +134,107 @@ export function buildLedgerPdfHtml(
   dateFrom?: string,
   dateTo?: string
 ): string {
-  const firmName = firm?.name || "Transport Company";
-  const firmAddress = firm?.address || "";
-  const firmPhone = firm?.phone || "";
-  const firmGstin = firm?.gstin || "";
-  const firmPan = firm?.pan || "";
+  const firmName = firm?.name ? stripSymbols(firm.name) : "DEEPRAJ TRANSPORT";
+  const firmAddress = firm?.address ? stripSymbols(firm.address) : "";
+  const firmPhone = firm?.phone ? stripSymbols(firm.phone) : "";
+  const firmGstin = firm?.gstin ? stripSymbols(firm.gstin) : "";
+  const firmPan = firm?.pan ? stripSymbols(firm.pan) : "";
 
-  const partyName = party?.name || "Customer Ledger";
-  const partyPhone = party?.phone || "";
-  const partyGstin = party?.gstin || "";
-
-  const fmt = (n: number) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const partyName = party?.name ? stripSymbols(party.name) : "Customer Ledger";
+  const partyPhone = party?.phone ? stripSymbols(party.phone) : "";
+  const partyGstin = party?.gstin ? stripSymbols(party.gstin) : "";
 
   let totalDebit = 0;
   let totalCredit = 0;
 
-  const rowsHtml = transactions.map((t: any, idx: number) => {
-    const dr = Number(t.debitAmount || 0);
-    const cr = Number(t.creditAmount || 0);
-    totalDebit += dr;
-    totalCredit += cr;
-    const bal = Number(t.runningBalance || 0);
-    const bg = idx % 2 === 0 ? "#ffffff" : "#f8f9fa";
-    return `
-      <tr style="background:${bg};">
-        <td style="text-align:center;padding:5pt 4pt;">${idx + 1}</td>
-        <td style="text-align:center;padding:5pt 4pt;white-space:nowrap;">${formatDate(t.transactionDate)}</td>
-        <td style="padding:5pt 4pt;word-wrap:break-word;">${t.particulars || "-"}</td>
-        <td style="text-align:center;padding:5pt 4pt;">${t.voucherType || "-"}</td>
-        <td style="text-align:center;padding:5pt 4pt;font-family:monospace;">${t.voucherNumber || "-"}</td>
-        <td style="text-align:right;padding:5pt 4pt;color:${dr > 0 ? "#111827" : "#9ca3af"};">${dr > 0 ? fmt(dr) : "-"}</td>
-        <td style="text-align:right;padding:5pt 4pt;color:${cr > 0 ? "#111827" : "#9ca3af"};">${cr > 0 ? fmt(cr) : "-"}</td>
-        <td style="text-align:right;padding:5pt 4pt;font-weight:700;color:${bal >= 0 ? "#1e3a8a" : "#b91c1c"};">${fmt(bal)}</td>
-      </tr>`;
-  }).join("");
+  const cleanedRows = (transactions || []).map((t) => {
+    const row = cleanLedgerRow(t);
+    totalDebit += row.debitRaw;
+    totalCredit += row.creditRaw;
+    return row;
+  });
 
-  const closingBalance = transactions.length > 0 ? Number(transactions[transactions.length - 1].runningBalance || 0) : 0;
-  const periodText = dateFrom || dateTo ? `${dateFrom ? formatDate(dateFrom) : "Start"} to ${dateTo ? formatDate(dateTo) : "Present"}` : "All Records";
+  // Calculate opening and closing balance
+  let openingBalNum = 0;
+  if (cleanedRows.length > 0) {
+    const firstRow = cleanedRows[0];
+    openingBalNum = firstRow.balanceRaw - firstRow.creditRaw + firstRow.debitRaw;
+  }
+
+  const closingBalNum = cleanedRows.length > 0 ? cleanedRows[cleanedRows.length - 1].balanceRaw : openingBalNum;
+  const closingBalSuffix = closingBalNum >= 0 ? "Cr" : "Dr";
+
+  const openingBalanceFormatted = openingBalNum === 0 ? "0.00" : `${formatIndianCurrency(Math.abs(openingBalNum))} ${openingBalNum >= 0 ? "Cr" : "Dr"}`;
+  const totalDebitFormatted = formatIndianCurrency(totalDebit);
+  const totalCreditFormatted = formatIndianCurrency(totalCredit);
+  const closingBalanceFormatted = `${formatIndianCurrency(Math.abs(closingBalNum))} ${closingBalSuffix}`;
+
+  // Period display text
+  let periodText = "All Records";
+  if (dateFrom || dateTo) {
+    const fromStr = dateFrom ? formatLedgerDate(dateFrom) : "Start";
+    const toStr = dateTo ? formatLedgerDate(dateTo) : "Present";
+    periodText = `${fromStr} - ${toStr}`;
+  }
+
+  const generatedOnDate = formatLedgerDate(new Date().toISOString());
+
+  // Extract city for jurisdiction
+  let jurisdictionCity = "Gandhidham";
+  if (firmAddress) {
+    const match = firmAddress.match(/\b(Gandhidham|Ahmedabad|Surat|Rajkot|Vadodara|Mumbai|Delhi)\b/i);
+    if (match) {
+      jurisdictionCity = match[0];
+    }
+  }
+
+  const renderRow = (r: any) => `
+    <tr>
+      <td style="text-align:left;vertical-align:top;padding:7px 4px;font-size:11px;white-space:nowrap;color:#000000;">${r.dateFormatted}</td>
+      <td style="text-align:left;vertical-align:top;padding:7px 4px;color:#000000;">
+        <div style="font-weight:700;font-size:11px;color:#000000;line-height:1.2;">${r.title}</div>
+        ${r.narration ? `<div style="font-size:10px;color:#000000;margin-top:2px;line-height:1.2;">${r.narration}</div>` : ""}
+      </td>
+      <td style="text-align:center;vertical-align:top;padding:7px 4px;font-size:11px;color:#000000;white-space:nowrap;">${r.voucherNumber}</td>
+      <td style="text-align:right;vertical-align:top;padding:7px 4px;font-size:11px;color:#000000;white-space:nowrap;font-variant-numeric:tabular-nums;">${r.debitFormatted}</td>
+      <td style="text-align:right;vertical-align:top;padding:7px 4px;font-size:11px;color:#000000;white-space:nowrap;font-variant-numeric:tabular-nums;">${r.creditFormatted}</td>
+      <td style="text-align:right;vertical-align:top;padding:7px 4px;font-size:11px;font-weight:700;color:#000000;white-space:nowrap;font-variant-numeric:tabular-nums;">${r.balanceFormatted}</td>
+    </tr>`;
+
+  const renderTotalsRow = () => `
+    <tr class="totals-row">
+      <td colspan="3" style="text-align:right;padding:8px 4px;font-weight:700;font-size:11px;color:#000000;border-top:2px solid #000000;border-bottom:2px solid #000000;">TOTAL</td>
+      <td style="text-align:right;padding:8px 4px;font-weight:700;font-size:11px;color:#000000;white-space:nowrap;font-variant-numeric:tabular-nums;border-top:2px solid #000000;border-bottom:2px solid #000000;">${totalDebitFormatted}</td>
+      <td style="text-align:right;padding:8px 4px;font-weight:700;font-size:11px;color:#000000;white-space:nowrap;font-variant-numeric:tabular-nums;border-top:2px solid #000000;border-bottom:2px solid #000000;">${totalCreditFormatted}</td>
+      <td style="text-align:right;padding:8px 4px;font-weight:700;font-size:11px;color:#000000;white-space:nowrap;font-variant-numeric:tabular-nums;border-top:2px solid #000000;border-bottom:2px solid #000000;">${closingBalanceFormatted}</td>
+    </tr>`;
+
+  // Rule 5: Keep Total row with at least the last 2 rows using a dedicated keep-together tbody
+  let tableBodiesHtml = "";
+  if (cleanedRows.length === 0) {
+    tableBodiesHtml = `
+      <tbody>
+        <tr><td colspan="6" style="text-align:center;padding:20px;color:#000000;font-size:12px;">No transactions in this period</td></tr>
+        ${renderTotalsRow()}
+      </tbody>`;
+  } else if (cleanedRows.length <= 2) {
+    tableBodiesHtml = `
+      <tbody class="keep-together">
+        ${cleanedRows.map(renderRow).join("")}
+        ${renderTotalsRow()}
+      </tbody>`;
+  } else {
+    const mainRows = cleanedRows.slice(0, cleanedRows.length - 2);
+    const lastTwoRows = cleanedRows.slice(cleanedRows.length - 2);
+    tableBodiesHtml = `
+      <tbody>
+        ${mainRows.map(renderRow).join("")}
+      </tbody>
+      <tbody class="keep-together">
+        ${lastTwoRows.map(renderRow).join("")}
+        ${renderTotalsRow()}
+      </tbody>`;
+  }
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -170,89 +242,313 @@ export function buildLedgerPdfHtml(
   <meta charset="UTF-8">
   <title>Ledger Statement — ${partyName}</title>
   <style>
-    @page { size: A4 portrait; margin: 8mm 10mm; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 8.5pt; color: #1f2937; margin: 0; padding: 0; background: #fff; }
-    .header { border-bottom: 2pt solid #1e293b; padding-bottom: 8pt; margin-bottom: 10pt; }
-    .title-row { display: flex; justify-content: space-between; align-items: flex-start; }
-    .firm-name { font-size: 16pt; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; }
-    .firm-meta { font-size: 8pt; color: #475569; margin-top: 2pt; }
-    .doc-badge { background: #1e293b; color: #fff; padding: 4pt 10pt; font-size: 11pt; font-weight: 700; border-radius: 4px; text-transform: uppercase; }
-    .info-grid { display: flex; gap: 12pt; margin-bottom: 10pt; background: #f8fafc; border: 1pt solid #e2e8f0; border-radius: 6px; padding: 8pt 10pt; }
-    .info-box { flex: 1; }
-    .info-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; color: #64748b; margin-bottom: 2pt; }
-    .info-val { font-size: 9.5pt; font-weight: 700; color: #0f172a; }
-    table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 10pt; }
-    th { background: #1e293b; color: #ffffff; font-weight: 700; text-transform: uppercase; font-size: 7.5pt; padding: 6pt 4pt; border: 0.5pt solid #1e293b; }
-    td { border: 0.5pt solid #cbd5e1; vertical-align: middle; }
-    .totals-row td { background: #e2e8f0; font-weight: 700; border-top: 1.5pt solid #0f172a; font-size: 8.5pt; }
-    .footer-note { font-size: 7.5pt; color: #64748b; text-align: center; border-top: 0.5pt solid #e2e8f0; padding-top: 6pt; margin-top: 15pt; }
+    @page {
+      size: A4 portrait;
+      margin: 14mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      font-family: Arial, Helvetica, 'Segoe UI', sans-serif;
+      font-size: 11px;
+      color: #000000;
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      line-height: 1.35;
+    }
+
+    /* HEADER */
+    .header {
+      margin-bottom: 10px;
+    }
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: none;
+    }
+    .firm-name {
+      font-size: 22px;
+      font-weight: 800;
+      color: #000000;
+      text-transform: uppercase;
+      letter-spacing: -0.2px;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+    .firm-meta {
+      font-size: 11px;
+      color: #000000;
+      line-height: 1.4;
+    }
+    .doc-badge {
+      border: 1.5px solid #000000;
+      background: #ffffff;
+      color: #000000;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      display: inline-block;
+    }
+    .header-line {
+      height: 2px;
+      background: #000000;
+      margin-top: 10px;
+    }
+
+    /* PARTY & PERIOD BOX */
+    .party-period-box {
+      margin-top: 10px;
+      margin-bottom: 12px;
+    }
+    .box-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #000000;
+      margin-bottom: 3px;
+    }
+    .party-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 2px;
+    }
+    .party-meta {
+      font-size: 11px;
+      color: #000000;
+    }
+    .period-info {
+      text-align: right;
+      white-space: nowrap;
+    }
+    .period-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 2px;
+    }
+    .generated-meta {
+      font-size: 11px;
+      color: #000000;
+    }
+    .section-divider {
+      height: 1.5px;
+      background: #000000;
+      margin-top: 10px;
+      margin-bottom: 12px;
+    }
+
+    /* SUMMARY CARDS */
+    .summary-cards {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 0;
+    }
+    .summary-card {
+      flex: 1;
+      background: #ffffff;
+      border: 1.5px solid #000000;
+      padding: 8px 10px;
+    }
+    .card-label {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #000000;
+      margin-bottom: 4px;
+    }
+    .card-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: #000000;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* TRANSACTION TABLE */
+    table.txn-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-bottom: 8px;
+    }
+    thead {
+      display: table-header-group;
+    }
+    tr {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    th {
+      background: #ffffff;
+      color: #000000;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 10.5px;
+      letter-spacing: 0.3px;
+      padding: 8px 4px;
+      border-top: 2px solid #000000;
+      border-bottom: 2px solid #000000;
+    }
+    td {
+      border-bottom: 1px solid #000000;
+    }
+    tbody.keep-together {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    /* FOOTER */
+    .footer-container {
+      margin-top: 36px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .discrepancy-note {
+      font-size: 10px;
+      color: #000000;
+      line-height: 1.4;
+    }
+    .signature-block {
+      display: inline-block;
+      text-align: center;
+      min-width: 180px;
+    }
+    .signature-company {
+      font-size: 11px;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 36px;
+    }
+    .signature-line {
+      border-top: 1px solid #000000;
+      margin-bottom: 4px;
+    }
+    .signature-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #000000;
+    }
   </style>
 </head>
 <body>
+  <!-- HEADER -->
   <div class="header">
-    <table style="width:100%;border:none;margin:0;">
+    <table class="header-table">
       <tr style="background:transparent;">
-        <td style="border:none;padding:0;">
+        <td style="border:none;padding:0;vertical-align:top;">
           <div class="firm-name">${firmName}</div>
           <div class="firm-meta">
-            ${firmAddress ? firmAddress + " &nbsp;|&nbsp; " : ""}
-            ${firmPhone ? "Ph: " + firmPhone + " &nbsp;|&nbsp; " : ""}
-            ${firmGstin ? "GSTIN: " + firmGstin + " &nbsp;|&nbsp; " : ""}
+            ${firmAddress ? firmAddress : ""}
+            ${firmAddress && (firmPhone || firmPan) ? "<br>" : ""}
+            ${firmPhone ? "Phone: " + firmPhone : ""}
+            ${firmPhone && firmPan ? " &nbsp;|&nbsp; " : ""}
             ${firmPan ? "PAN: " + firmPan : ""}
           </div>
         </td>
         <td style="border:none;padding:0;text-align:right;vertical-align:top;">
-          <span class="doc-badge">Ledger Statement</span>
+          <div class="doc-badge">LEDGER STATEMENT</div>
+        </td>
+      </tr>
+    </table>
+    <div class="header-line"></div>
+  </div>
+
+  <!-- PARTY / PERIOD BOX -->
+  <div class="party-period-box">
+    <table style="width:100%;border-collapse:collapse;border:none;">
+      <tr style="background:transparent;">
+        <td style="border:none;padding:0;vertical-align:top;">
+          <div class="box-label">ACCOUNT / PARTY</div>
+          <div class="party-name">${partyName}</div>
+          <div class="party-meta">
+            ${partyPhone ? "Phone: " + partyPhone : ""}
+            ${partyPhone && partyGstin ? " &nbsp;|&nbsp; " : ""}
+            ${partyGstin ? "GSTIN: " + partyGstin : ""}
+          </div>
+        </td>
+        <td style="border:none;padding:0;text-align:right;vertical-align:top;white-space:nowrap;">
+          <div class="box-label">STATEMENT PERIOD</div>
+          <div class="period-val">${periodText}</div>
+          <div class="generated-meta">Generated on ${generatedOnDate}</div>
+        </td>
+      </tr>
+    </table>
+    <div class="section-divider"></div>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-cards">
+    <div class="summary-card">
+      <div class="card-label">OPENING BALANCE</div>
+      <div class="card-value">${openingBalanceFormatted}</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">TOTAL DEBIT</div>
+      <div class="card-value">${totalDebitFormatted}</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">TOTAL CREDIT</div>
+      <div class="card-value">${totalCreditFormatted}</div>
+    </div>
+    <div class="summary-card">
+      <div class="card-label">CLOSING BALANCE</div>
+      <div class="card-value">${closingBalanceFormatted}</div>
+    </div>
+  </div>
+  <div class="section-divider"></div>
+
+  <!-- TRANSACTION TABLE -->
+  <table class="txn-table">
+    <thead>
+      <tr>
+        <th style="width:84px;text-align:left;">DATE</th>
+        <th style="text-align:left;">PARTICULARS</th>
+        <th style="width:60px;text-align:center;">VCH NO.</th>
+        <th style="width:92px;text-align:right;">DEBIT</th>
+        <th style="width:92px;text-align:right;">CREDIT</th>
+        <th style="width:110px;text-align:right;">BALANCE</th>
+      </tr>
+    </thead>
+    ${tableBodiesHtml}
+  </table>
+
+  <!-- CURRENCY DISCLAIMER BELOW TABLE -->
+  <div style="font-size:10px;color:#000000;margin-top:4px;margin-bottom:24px;">
+    All amounts are in Indian Rupees. Cr means amount payable to ${firmName}.
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-container">
+    <table style="width:100%;border-collapse:collapse;border:none;margin:0;">
+      <tr style="background:transparent;">
+        <td style="border:none;padding:0;vertical-align:bottom;width:65%;">
+          <div class="discrepancy-note">
+            This is a computer generated statement and does not require a signature. Please report any discrepancy within 7 days of receipt. Subject to ${jurisdictionCity} jurisdiction.
+          </div>
+        </td>
+        <td style="border:none;padding:0;text-align:right;vertical-align:bottom;width:35%;">
+          <div class="signature-block">
+            <div class="signature-company">For ${firmName.toUpperCase()}</div>
+            <div class="signature-line"></div>
+            <div class="signature-label">Authorised Signatory</div>
+          </div>
         </td>
       </tr>
     </table>
   </div>
-
-  <div class="info-grid">
-    <div class="info-box">
-      <div class="info-label">Account / Party</div>
-      <div class="info-val">${partyName}</div>
-      <div style="font-size:8pt;color:#64748b;margin-top:2pt;">
-        ${partyPhone ? "Phone: " + partyPhone : ""} ${partyGstin ? "| GSTIN: " + partyGstin : ""}
-      </div>
-    </div>
-    <div class="info-box" style="text-align:right;">
-      <div class="info-label">Statement Period</div>
-      <div class="info-val">${periodText}</div>
-      <div style="font-size:8pt;color:#64748b;margin-top:2pt;">Generated on ${formatDate(new Date().toISOString())}</div>
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th style="width:24pt;text-align:center;">#</th>
-        <th style="width:54pt;text-align:center;">Date</th>
-        <th>Particulars</th>
-        <th style="width:65pt;text-align:center;">Voucher Type</th>
-        <th style="width:70pt;text-align:center;">Voucher No.</th>
-        <th style="width:65pt;text-align:right;">Debit (₹)</th>
-        <th style="width:65pt;text-align:right;">Credit (₹)</th>
-        <th style="width:75pt;text-align:right;">Balance (₹)</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${rowsHtml || `<tr><td colspan="8" style="text-align:center;padding:12pt;color:#64748b;">No ledger transactions found for this period.</td></tr>`}
-      <tr class="totals-row">
-        <td colspan="5" style="text-align:right;padding:6pt 4pt;">Totals & Closing Balance</td>
-        <td style="text-align:right;padding:6pt 4pt;">${fmt(totalDebit)}</td>
-        <td style="text-align:right;padding:6pt 4pt;">${fmt(totalCredit)}</td>
-        <td style="text-align:right;padding:6pt 4pt;color:${closingBalance >= 0 ? "#1e3a8a" : "#b91c1c"};">${fmt(closingBalance)}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="footer-note">
-    This is a computer-generated ledger statement for ${partyName} — ${firmName}. Page 1 of 1.
-  </div>
 </body>
 </html>`;
 }
+
 
 /**
  * Generates a PDF Buffer for a party's ledger.
@@ -306,7 +602,7 @@ export async function generateLedgerPdfBuffer(
     const pdfUint8Array = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "8mm", bottom: "8mm", left: "10mm", right: "10mm" },
+      margin: { top: "14mm", bottom: "14mm", left: "14mm", right: "14mm" },
       displayHeaderFooter: false,
     });
 
@@ -320,4 +616,3 @@ export async function generateLedgerPdfBuffer(
     }
   }
 }
-

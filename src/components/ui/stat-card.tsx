@@ -40,29 +40,36 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-[#D8D5CE] bg-white p-6 shadow-xs transition-shadow hover:shadow-md",
+        "rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs transition-all hover:shadow-sm min-w-0 overflow-hidden flex flex-col justify-between",
         tone && TONE_BAR_STYLES[tone],
         className
       )}
     >
-      <div className="flex items-start justify-between">
-        <div className="text-xs font-semibold tracking-wider text-[#5F6368] uppercase">{label}</div>
+      <div className="flex items-center justify-between gap-1 min-w-0">
+        <div className="text-[11px] font-bold tracking-wider text-[#5F6368] uppercase truncate min-w-0" title={label}>
+          {label}
+        </div>
         {Icon && (
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: `${iconColor}12`, color: iconColor }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: `${iconColor}14`, color: iconColor }}
           >
-            <Icon size={16} />
+            <Icon size={14} />
           </div>
         )}
       </div>
-      <div className="text-2xl font-bold tracking-tight text-[#1A1D20] mt-2 font-mono-nums">{value}</div>
+      <div
+        className="text-lg sm:text-xl font-bold tracking-tight text-[#1A1D20] mt-2 font-mono-nums truncate min-w-0"
+        title={String(value)}
+      >
+        {value}
+      </div>
       {(displaySub || trendLabel) && (
-        <div className="flex items-center gap-1.5 mt-1.5">
+        <div className="flex items-center gap-1.5 mt-1.5 min-w-0">
           {trendLabel && trend && (
             <span
               className={cn(
-                "text-xs font-semibold",
+                "text-[11px] font-semibold shrink-0",
                 trend === "up" && "text-[#2E7D32]",
                 trend === "down" && "text-[#D32F2F]",
                 trend === "neutral" && "text-[#7A7F85]"
@@ -72,7 +79,7 @@ export function StatCard({
               {trendLabel}
             </span>
           )}
-          {displaySub && <span className="text-xs text-[#7A7F85]">{displaySub}</span>}
+          {displaySub && <span className="text-[11px] text-[#7A7F85] truncate min-w-0">{displaySub}</span>}
         </div>
       )}
     </div>
@@ -82,10 +89,10 @@ export function StatCard({
 /* ─── Skeleton ─────────────────────────────────────────────── */
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-[#D8D5CE] bg-white p-6 shadow-xs">
-      <div className="skeleton h-3 w-24 mb-3 rounded" />
-      <div className="skeleton h-7 w-32 mb-2 rounded" />
-      <div className="skeleton h-2.5 w-16 rounded" />
+    <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 shadow-xs min-w-0">
+      <div className="skeleton h-3 w-20 mb-2 rounded" />
+      <div className="skeleton h-6 w-28 mb-1.5 rounded" />
+      <div className="skeleton h-2.5 w-14 rounded" />
     </div>
   );
 }

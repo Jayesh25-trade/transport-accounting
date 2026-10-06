@@ -129,7 +129,7 @@ export default function OutstandingReportPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in print:p-0">
+    <div className="space-y-6 animate-fade-in print:p-0 pb-20 text-[#1A1D20]">
       {/* Header */}
       <PageHeader
         title="Outstanding Report"
@@ -145,16 +145,16 @@ export default function OutstandingReportPage() {
       />
 
       {/* Filters Bar */}
-      <div className="card p-4 space-y-3 print:hidden">
-        <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-            <Filter size={14} className="text-gray-400" />
+      <div className="rounded-2xl border border-[#D8D5CE] bg-white p-4 space-y-3 shadow-xs print:hidden">
+        <div className="flex items-center justify-between border-b border-[#EFECE6] pb-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-[#1A1D20]">
+            <Filter size={14} className="text-[#E05638]" />
             <span>Report Filters</span>
           </div>
           {(partyId || dateFrom || dateTo || statusFilter !== "ALL") && (
             <button
               onClick={handleResetFilters}
-              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-medium"
+              className="text-xs text-[#E05638] hover:underline flex items-center gap-1 font-semibold"
             >
               <RotateCcw size={12} /> Reset Filters
             </button>
@@ -163,11 +163,11 @@ export default function OutstandingReportPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
           <div>
-            <label className="block text-gray-500 font-medium mb-1">Customer / Party</label>
+            <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider mb-1">Customer / Party</label>
             <select
               value={partyId}
               onChange={(e) => setPartyId(e.target.value)}
-              className="form-input w-full"
+              className="form-input w-full font-medium text-xs"
             >
               <option value="">All Parties</option>
               {parties.map((p) => (
@@ -179,31 +179,31 @@ export default function OutstandingReportPage() {
           </div>
 
           <div>
-            <label className="block text-gray-500 font-medium mb-1">Bill Date From</label>
+            <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider mb-1">Bill Date From</label>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="form-input w-full"
+              className="form-input w-full font-medium text-xs"
             />
           </div>
 
           <div>
-            <label className="block text-gray-500 font-medium mb-1">Bill Date To</label>
+            <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider mb-1">Bill Date To</label>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="form-input w-full"
+              className="form-input w-full font-medium text-xs"
             />
           </div>
 
           <div>
-            <label className="block text-gray-500 font-medium mb-1">Bill Payment Status</label>
+            <label className="block text-[11px] font-bold text-[#5F6368] uppercase tracking-wider mb-1">Bill Payment Status</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="form-input w-full"
+              className="form-input w-full font-medium text-xs"
             >
               <option value="ALL">All Statuses</option>
               <option value="PENDING">Pending (Unpaid)</option>
@@ -216,7 +216,7 @@ export default function OutstandingReportPage() {
 
       {/* Error state */}
       {error && (
-        <div className="p-4 bg-red-50 text-red-600 rounded-xl text-xs border border-red-200 flex items-center justify-between">
+        <div className="p-3.5 bg-red-50 text-red-700 rounded-xl text-xs border border-red-200 flex items-center justify-between">
           <span>{error}</span>
           <Button variant="secondary" size="sm" onClick={fetchReport}>
             Retry
@@ -240,7 +240,8 @@ export default function OutstandingReportPage() {
               value={formatCurrency(data?.summary.totalOutstanding ?? 0)}
               sub="Uncollected bill balance"
               icon={IndianRupee}
-              iconColor="#ef4444"
+              iconColor="#E05638"
+              className="bg-[#FAF8F5] border-[#E05638]/40"
             />
             <StatCard
               label="Unallocated Advances"
@@ -268,17 +269,17 @@ export default function OutstandingReportPage() {
       </div>
 
       {/* Main Table */}
-      <div className="card overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <FileText size={16} className="text-indigo-500" />
+      <div className="rounded-2xl border border-[#D8D5CE] bg-white overflow-hidden shadow-xs">
+        <div className="p-4 border-b border-[#EFECE6] bg-[#FAF8F5] flex items-center justify-between">
+          <h3 className="text-xs font-bold text-[#1A1D20] flex items-center gap-2 uppercase tracking-wider">
+            <FileText size={15} className="text-[#E05638]" />
             Outstanding Bills ({data?.bills.length ?? 0})
           </h3>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-gray-50 dark:bg-gray-800/80 font-semibold uppercase text-gray-500 border-b border-gray-100 dark:border-gray-800">
+          <table className="w-full text-left text-xs min-w-[900px]">
+            <thead className="bg-[#FAF8F5] border-b border-[#D8D5CE] font-bold text-[#5F6368] uppercase text-[11px] tracking-wider">
               <tr>
                 <th className="p-3">Party Name</th>
                 <th className="p-3">Bill No</th>
@@ -288,46 +289,46 @@ export default function OutstandingReportPage() {
                 <th className="p-3 text-right">TDS</th>
                 <th className="p-3 text-right">Net Bill</th>
                 <th className="p-3 text-right">Received</th>
-                <th className="p-3 text-right">Outstanding</th>
+                <th className="p-3 text-right font-bold text-[#1A1D20]">Outstanding</th>
                 <th className="p-3 text-center">Status</th>
                 <th className="p-3 text-center print:hidden">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-[#EFECE6]">
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-gray-400">
+                  <td colSpan={11} className="p-8 text-center text-[#7A7F85]">
                     Loading outstanding report…
                   </td>
                 </tr>
               ) : !data?.bills.length ? (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-gray-400">
+                  <td colSpan={11} className="p-8 text-center text-[#7A7F85]">
                     No outstanding bills match the selected filters.
                   </td>
                 </tr>
               ) : (
                 data.bills.map((b) => (
-                  <tr key={b.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
-                    <td className="p-3 font-semibold text-gray-900 dark:text-gray-100">
+                  <tr key={b.id} className="hover:bg-[#FAF8F5]/80 transition-colors">
+                    <td className="p-3 font-bold text-[#1A1D20]">
                       {b.partyName}
                     </td>
-                    <td className="p-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    <td className="p-3 font-mono-nums font-bold text-[#E05638]">
                       #{b.billNumber}
                     </td>
-                    <td className="p-3 whitespace-nowrap text-gray-500">{formatDate(b.billDate)}</td>
-                    <td className="p-3 text-right font-mono">{formatCurrency(b.grossBillAmount)}</td>
-                    <td className="p-3 text-right font-mono text-red-500">
-                      {b.shortageDebit > 0 ? `- ${formatCurrency(b.shortageDebit)}` : "-"}
+                    <td className="p-3 whitespace-nowrap text-[#5F6368]">{formatDate(b.billDate)}</td>
+                    <td className="p-3 text-right font-mono-nums font-medium">{formatCurrency(b.grossBillAmount)}</td>
+                    <td className="p-3 text-right font-mono-nums text-red-600 font-semibold">
+                      {b.shortageDebit > 0 ? `- ${formatCurrency(b.shortageDebit)}` : "—"}
                     </td>
-                    <td className="p-3 text-right font-mono text-purple-600 dark:text-purple-400">
-                      {b.tdsAmount > 0 ? `- ${formatCurrency(b.tdsAmount)}` : "-"}
+                    <td className="p-3 text-right font-mono-nums text-amber-700 font-semibold">
+                      {b.tdsAmount > 0 ? `- ${formatCurrency(b.tdsAmount)}` : "—"}
                     </td>
-                    <td className="p-3 text-right font-mono font-medium">{formatCurrency(b.netBillAmount)}</td>
-                    <td className="p-3 text-right font-mono text-emerald-600 dark:text-emerald-400">
+                    <td className="p-3 text-right font-mono-nums font-medium">{formatCurrency(b.netBillAmount)}</td>
+                    <td className="p-3 text-right font-mono-nums text-emerald-700 font-semibold">
                       {formatCurrency(b.receivedAmount)}
                     </td>
-                    <td className="p-3 text-right font-mono font-bold text-red-600 dark:text-red-400">
+                    <td className="p-3 text-right font-mono-nums font-bold text-red-600">
                       {formatCurrency(b.pendingAmount)}
                     </td>
                     <td className="p-3 text-center">
@@ -346,10 +347,10 @@ export default function OutstandingReportPage() {
                     <td className="p-3 text-center print:hidden">
                       <button
                         onClick={() => setViewBillId(b.id)}
-                        className="btn btn-ghost btn-xs text-indigo-600 dark:text-indigo-400"
+                        className="rounded-lg border border-[#D8D5CE] px-2.5 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#FAF8F5]"
                         title="View Bill Details"
                       >
-                        <Eye size={14} /> View
+                        View
                       </button>
                     </td>
                   </tr>
@@ -362,42 +363,42 @@ export default function OutstandingReportPage() {
 
       {/* Separate Advance Summary Section */}
       {Boolean(data?.advances.length) && (
-        <div className="card overflow-hidden">
-          <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-purple-50/50 dark:bg-purple-950/20">
-            <h3 className="text-sm font-bold text-purple-900 dark:text-purple-300 flex items-center gap-2">
-              <CreditCard size={16} className="text-purple-500" />
+        <div className="rounded-2xl border border-[#D8D5CE] bg-white overflow-hidden shadow-xs">
+          <div className="p-4 border-b border-[#EFECE6] bg-purple-50/50">
+            <h3 className="text-xs font-bold text-purple-900 flex items-center gap-2 uppercase tracking-wider">
+              <CreditCard size={15} className="text-purple-600" />
               Unallocated Customer Advances ({data?.advances.length})
             </h3>
-            <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
+            <p className="text-[11px] text-purple-700 mt-0.5">
               Advances remain unallocated and separate from individual bill outstanding balances.
             </p>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 dark:bg-gray-800/80 font-semibold uppercase text-gray-500">
+            <table className="w-full text-left text-xs min-w-[700px]">
+              <thead className="bg-[#FAF8F5] border-b border-[#D8D5CE] font-bold text-[#5F6368] uppercase text-[11px] tracking-wider">
                 <tr>
                   <th className="p-3">Party Name</th>
                   <th className="p-3">Payment Date</th>
                   <th className="p-3">Mode</th>
                   <th className="p-3">Ref / Cheque No</th>
                   <th className="p-3 text-right">Total Payment</th>
-                  <th className="p-3 text-right">Unallocated Advance</th>
+                  <th className="p-3 text-right font-bold text-purple-900">Unallocated Advance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-[#EFECE6]">
                 {data?.advances.map((adv) => (
-                  <tr key={adv.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
-                    <td className="p-3 font-semibold text-gray-900 dark:text-gray-100">
+                  <tr key={adv.id} className="hover:bg-[#FAF8F5]/80 transition-colors">
+                    <td className="p-3 font-bold text-[#1A1D20]">
                       {adv.partyName}
                     </td>
-                    <td className="p-3 text-gray-500">{formatDate(adv.paymentDate)}</td>
+                    <td className="p-3 text-[#5F6368]">{formatDate(adv.paymentDate)}</td>
                     <td className="p-3">
                       <Badge variant="neutral">{adv.paymentMode}</Badge>
                     </td>
-                    <td className="p-3 font-mono text-gray-500">{adv.referenceNumber || "-"}</td>
-                    <td className="p-3 text-right font-mono">{formatCurrency(adv.amount)}</td>
-                    <td className="p-3 text-right font-mono font-bold text-purple-600 dark:text-purple-400">
+                    <td className="p-3 font-mono-nums text-[#7A7F85]">{adv.referenceNumber || "—"}</td>
+                    <td className="p-3 text-right font-mono-nums">{formatCurrency(adv.amount)}</td>
+                    <td className="p-3 text-right font-mono-nums font-bold text-purple-700">
                       {formatCurrency(adv.unallocatedAmount)}
                     </td>
                   </tr>
