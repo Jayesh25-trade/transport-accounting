@@ -32,7 +32,7 @@ export async function getLatestLedgerRunningBalance(
   partyId: string
 ): Promise<number> {
   const voucherRankDesc = sql`
-    CASE ${ledgerTransactions.voucherType}
+    CASE ${ledgerTransactions.voucherType}::text
       WHEN 'OPENING_BALANCE' THEN 7
       WHEN 'PAYMENT_BANK' THEN 1
       WHEN 'PAYMENT_CASH' THEN 1
@@ -166,7 +166,7 @@ export async function listLedgerTransactions(
   }
 
   const voucherRankAsc = sql`
-    CASE ${ledgerTransactions.voucherType}
+    CASE ${ledgerTransactions.voucherType}::text
       WHEN 'OPENING_BALANCE' THEN 1
       WHEN 'TRANSPORTATION_CHARGES_RCM' THEN 2
       WHEN 'TDS_JOURNAL' THEN 3
