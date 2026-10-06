@@ -110,7 +110,7 @@ export async function createBill(
         allowanceType: tripRule?.shortageAllowanceType,
         allowanceValue: tripRule?.shortageAllowanceValue ? Number(tripRule.shortageAllowanceValue) : 0,
         shortageRuleType: tripRule?.shortageRuleType,
-        materialRatePerTon: rateToUse,
+        materialRatePerTon: (tripRule?.materialRatePerTon !== null && tripRule?.materialRatePerTon !== undefined) ? Number(tripRule.materialRatePerTon) : rateToUse,
       });
 
       const freightRes = calculateFreight({
@@ -567,7 +567,7 @@ export async function editBill(
         allowanceType: tripRule?.shortageAllowanceType,
         allowanceValue: tripRule?.shortageAllowanceValue ? Number(tripRule.shortageAllowanceValue) : 0,
         shortageRuleType: tripRule?.shortageRuleType,
-        materialRatePerTon: rateToUse,
+        materialRatePerTon: (tripRule?.materialRatePerTon !== null && tripRule?.materialRatePerTon !== undefined) ? Number(tripRule.materialRatePerTon) : rateToUse,
       });
 
       const freightRes = calculateFreight({
@@ -886,7 +886,7 @@ export async function previewBillCalculation(
       allowanceType: tripRule?.shortageAllowanceType,
       allowanceValue: tripRule?.shortageAllowanceValue ? Number(tripRule.shortageAllowanceValue) : 0,
       shortageRuleType: tripRule?.shortageRuleType,
-      materialRatePerTon: rateToUse,
+      materialRatePerTon: (tripRule?.materialRatePerTon !== null && tripRule?.materialRatePerTon !== undefined) ? Number(tripRule.materialRatePerTon) : rateToUse,
     });
 
     const freightRes = calculateFreight({

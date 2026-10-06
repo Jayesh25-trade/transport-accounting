@@ -47,6 +47,7 @@ import {
 import { createDailyEntry } from "../services/daily-entry.service";
 import { createParty, upsertCustomerRule } from "../services/party.service";
 import { createBill } from "../services/bill.service";
+import { DomainValidationError } from "../lib/errors";
 import { inArray, sql, eq, and } from "drizzle-orm";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -246,32 +247,17 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         isReceived: true,
       });
 
-      const bill = await createBill(db, {
-        firmId: firmA_Id,
-        partyId: billingParty.id,
-        billDate: "2026-09-22",
-        tripIds: [dRoha.trip!.id, dSatra.trip!.id],
-      });
-
-      // Trip A: 39T × ₹1000 = ₹39,000, Trip B: 39T × ₹1200 = ₹46,800 → ₹85,800 total
-      assert.equal(Number(bill.subtotalFreight), 85800, "T2: subtotalFreight");
-
-      const items = await db.select().from(billItems).where(eq(billItems.billId, bill.id));
-      assert.equal(items.length, 2, "T2: two bill items");
-
-      // Sort by shortageMaterialRate to reliably identify which item is which
-      const sortedItems = [...items].sort(
-        (a, b) => Number(a.shortageMaterialRate) - Number(b.shortageMaterialRate)
+      await assert.rejects(
+        async () =>
+          await createBill(db, {
+            firmId: firmA_Id,
+            partyId: partyRoha.id,
+            billDate: "2026-09-22",
+            tripIds: [dRoha.trip!.id, dSatra.trip!.id],
+          }),
+        DomainValidationError,
+        "T2: Mixed party trips in one bill rejected"
       );
-      // Roha (₹1000/T): applicable = 0.8T → debit = ₹800
-      assert.equal(Number(sortedItems[0].shortageMaterialRate), 1000, "T2: Roha material rate");
-      assert.equal(Number(sortedItems[0].shortageDebitAmount), 800, "T2: Roha debit");
-      // Satra (₹1200/T): applicable = 0.6T → debit = ₹720
-      assert.equal(Number(sortedItems[1].shortageMaterialRate), 1200, "T2: Satra material rate");
-      assert.equal(Number(sortedItems[1].shortageDebitAmount), 720, "T2: Satra debit");
-
-      // Bill total shortage debit = ₹800 + ₹720 = ₹1,520
-      assert.equal(Number(bill.debitNoteAmount), 1520, "T2: total shortage debit");
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -305,28 +291,17 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         isReceived: true,
       });
 
-      const bill = await createBill(db, {
-        firmId: firmA_Id,
-        partyId: billingParty.id,
-        billDate: "2026-09-22",
-        tripIds: [dRoha.trip!.id, dFix.trip!.id],
-      });
-
-      const items = await db.select().from(billItems).where(eq(billItems.billId, bill.id));
-      assert.equal(items.length, 2, "T3: two items");
-
-      const rohaItem = items.find((i) => i.shortageAllowanceType === "PERCENTAGE");
-      const fixItem  = items.find((i) => i.shortageAllowanceType === "FIXED_KG");
-
-      assert.ok(rohaItem, "T3: Roha PERCENTAGE item present");
-      assert.ok(fixItem,  "T3: FixKg FIXED_KG item present");
-
-      // Roha: 0.8T × ₹1000 = ₹800
-      assert.equal(Number(rohaItem!.shortageDebitAmount), 800, "T3: Roha debit");
-      // FixKg: 1.0T - 0.3T allowance = 0.7T × ₹800 = ₹560
-      assert.equal(Number(fixItem!.shortageDebitAmount), 560, "T3: FixKg debit");
-
-      assert.equal(Number(bill.debitNoteAmount), 1360, "T3: total debit");
+      await assert.rejects(
+        async () =>
+          await createBill(db, {
+            firmId: firmA_Id,
+            partyId: partyRoha.id,
+            billDate: "2026-09-22",
+            tripIds: [dRoha.trip!.id, dFix.trip!.id],
+          }),
+        DomainValidationError,
+        "T3: Mixed party trips in one bill rejected"
+      );
     });
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -497,36 +472,17 @@ test("Customer-Wise Shortage Rule Resolution (Phase 4C-2A.1)", async (t) => {
         isReceived: true,
       });
 
-      const bill = await createBill(db, {
-        firmId: firmA_Id,
-        partyId: billingParty.id,
-        billDate: "2026-09-22",
-        tripIds: [dA.trip!.id, dB.trip!.id, dC.trip!.id],
-      });
-
-      const items = await db.select().from(billItems).where(eq(billItems.billId, bill.id));
-      assert.equal(items.length, 3, "T8: 3 bill items");
-
-      // Identify items by snapshotted rule type + allowance type
-      const rohaItem  = items.find((i) => i.shortageAllowanceType === "PERCENTAGE" && Number(i.shortageMaterialRate) === 1000);
-      const fixItem   = items.find((i) => i.shortageAllowanceType === "FIXED_KG");
-      const fullItem  = items.find((i) => i.shortageRuleType === "FULL_SHORTAGE");
-
-      assert.ok(rohaItem, "T8: Roha item found");
-      assert.ok(fixItem,  "T8: FixKg item found");
-      assert.ok(fullItem, "T8: Full item found");
-
-      assert.equal(Number(rohaItem!.shortageDebitAmount),  800,  "T8: Roha debit=800");
-      assert.equal(Number(fixItem!.shortageDebitAmount),   560,  "T8: FixKg debit=560");
-      assert.equal(Number(fullItem!.shortageDebitAmount),  900,  "T8: FullShortage debit=900");
-
-      // Total debit note amount
-      assert.equal(Number(bill.debitNoteAmount), 2260, "T8: total debit=2260");
-
-      // Verify rule types are independently snapshotted
-      assert.equal(rohaItem!.shortageRuleType,  "EXCESS_ONLY",   "T8: Roha snapshotted EXCESS_ONLY");
-      assert.equal(fixItem!.shortageRuleType,   "EXCESS_ONLY",   "T8: FixKg snapshotted EXCESS_ONLY");
-      assert.equal(fullItem!.shortageRuleType,  "FULL_SHORTAGE",  "T8: FullShortage snapshotted");
+      await assert.rejects(
+        async () =>
+          await createBill(db, {
+            firmId: firmA_Id,
+            partyId: partyRoha.id,
+            billDate: "2026-09-22",
+            tripIds: [dA.trip!.id, dB.trip!.id, dC.trip!.id],
+          }),
+        DomainValidationError,
+        "T8: Mixed party trips in one bill rejected"
+      );
     });
 
   } finally {
