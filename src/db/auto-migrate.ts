@@ -62,7 +62,11 @@ export async function ensureDbSchemaSynced() {
     // 4. Add columns to customer_rules table individually
     await db.execute(sql`ALTER TABLE customer_rules ADD COLUMN IF NOT EXISTS material_rate_per_ton numeric(12, 4)`);
 
-    // 5. AUTO-HEAL ORPHANED FIRM REFERENCES: Ensure any firm_id present in parties or trips exists in firms table
+    // 5. Add new PostgreSQL enum values if missing
+    await db.execute(sql`ALTER TYPE ledger_voucher_type ADD VALUE IF NOT EXISTS 'DRIVER_VOUCHER_DEDUCTION'`);
+    await db.execute(sql`ALTER TYPE freight_basis ADD VALUE IF NOT EXISTS 'AUTO_SHORTAGE_BASED'`);
+
+    // 6. AUTO-HEAL ORPHANED FIRM REFERENCES: Ensure any firm_id present in parties or trips exists in firms table
     await db.execute(sql`
       INSERT INTO firms (id, name, code, is_active)
       SELECT DISTINCT p.firm_id, 'Deepraj Transport', 'DEEPRAJ', true
@@ -81,7 +85,7 @@ export async function ensureDbSchemaSynced() {
       ON CONFLICT (id) DO NOTHING
     `);
 
-    // 6. Explicitly ensure default Deepraj Transport firm ID exists in firms table
+    // 7. Explicitly ensure default Deepraj Transport firm ID exists in firms table
     await db.execute(sql`
       INSERT INTO firms (id, name, code, is_active)
       VALUES ('d4df3ccc-0146-401e-894d-c1af8140880e', 'Deepraj Transport', 'DEEPRAJ', true)
