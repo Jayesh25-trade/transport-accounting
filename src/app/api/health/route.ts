@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
+import { ensureDbSchemaSynced } from "@/db/auto-migrate";
 
 export async function GET() {
   try {
+    await ensureDbSchemaSynced();
     await db.execute(sql`SELECT 1`);
     return NextResponse.json(
       {

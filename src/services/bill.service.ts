@@ -11,11 +11,13 @@ import { calculateBillTotals, validateBillEdit } from "../domain/bill";
 import { postLedgerEntry } from "./ledger.service";
 import { recordAuditLog } from "./audit.service";
 import { EntityNotFoundError, FirmIsolationError, DomainValidationError } from "../lib/errors";
+import { ensureDbSchemaSynced } from "../db/auto-migrate";
 
 export async function createBill(
   db: NodePgDatabase<any>,
   rawInput: BillCreateInput
 ) {
+  await ensureDbSchemaSynced();
   const input = billCreateInputSchema.parse(rawInput);
 
   return await db.transaction(async (tx) => {
@@ -805,6 +807,7 @@ export async function previewBillCalculation(
     appliedTdsPercentage?: number;
   }
 ) {
+  await ensureDbSchemaSynced();
   const firmId = rawInput.firmId;
   const partyId = rawInput.partyId;
   const tripIds = rawInput.tripIds || [];
