@@ -965,6 +965,21 @@ export default function DailyBookPage() {
     fetchNextSrNo();
   }, [fetchNextSrNo]);
 
+  // Handle ?edit=<dailyEntryId> search parameter from Driver Vouchers
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const editId = urlParams.get("edit");
+    if (editId && entries && entries.length > 0) {
+      const match = entries.find(
+        (e) => e.id === editId || e.srNo.toString() === editId
+      );
+      if (match) {
+        setEditEntry(match);
+      }
+    }
+  }, [entries]);
+
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);

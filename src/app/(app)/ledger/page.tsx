@@ -84,11 +84,40 @@ export default function LedgerPage() {
     return parties.find((p) => p.id === selectedPartyId) || null;
   }, [parties, selectedPartyId]);
 
+  // Reset selected party state when active firm changes
+  useEffect(() => {
+    setSelectedPartyId("");
+    setLedgerEntries([]);
+    setOpeningBalance(null);
+    setFetchError(null);
+  }, [currentFirm?.id]);
+
+  // If party selection does not exist in the loaded parties for current firm, reset it
+  useEffect(() => {
+    if (selectedPartyId && parties.length > 0) {
+      const exists = parties.some((p) => p.id === selectedPartyId);
+      if (!exists) {
+        setSelectedPartyId("");
+        setLedgerEntries([]);
+        setOpeningBalance(null);
+        setFetchError(null);
+      }
+    }
+  }, [parties, selectedPartyId]);
+
   // Fetch Ledger data when party or date filters change
   const fetchLedger = useCallback(async () => {
     if (!api.ready || !selectedPartyId) {
       setLedgerEntries((prev) => (prev.length > 0 ? [] : prev));
       setOpeningBalance((prev) => (prev !== null ? null : prev));
+      return;
+    }
+
+    // Verify selected party exists in current active firm's party list
+    const partyExists = parties.some((p) => p.id === selectedPartyId);
+    if (!partyExists) {
+      setLedgerEntries([]);
+      setOpeningBalance(null);
       return;
     }
 
@@ -116,7 +145,7 @@ export default function LedgerPage() {
     } finally {
       setLoadingLedger(false);
     }
-  }, [api.ready, api.firmUuid, selectedPartyId, dateFrom, dateTo, voucherTypeFilter, entryTypeFilter, searchQuery]);
+  }, [api.ready, api.firmUuid, selectedPartyId, parties, dateFrom, dateTo, voucherTypeFilter, entryTypeFilter, searchQuery]);
 
   useEffect(() => {
     fetchLedger();

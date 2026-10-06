@@ -7,6 +7,8 @@ import { Button, Badge } from "@/components/ui/primitives";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useFirm } from "@/lib/firm-context";
 
+import Link from "next/link";
+
 interface DriverVoucherDetailModalProps {
   voucher: any | null;
   open: boolean;
@@ -58,18 +60,18 @@ export function DriverVoucherDetailModal({
           {/* Status Header */}
           <div className="flex items-center justify-between bg-[#FAF8F5] p-3.5 rounded-xl border border-[#D8D5CE] shadow-xs">
             <div className="text-xs text-[#5F6368]">
-              Source Daily Book Entry: <span className="font-bold text-[#1A1D20]">#{voucher.dailyEntrySrNo}</span>
+              Source: <span className="font-bold text-[#1A1D20]">Generated from Daily Book Entry #{voucher.dailyEntrySrNo}</span>
             </div>
             <Badge variant="warning">
-              PENDING CONFIRMATION
+              Pending Confirmation
             </Badge>
           </div>
 
           {/* Unconfirmed Accounting Notice Banner */}
           <div className="bg-[#FFF4E5] border border-[#ED6C02]/30 rounded-xl p-3.5 text-xs text-[#92400E]">
-            <p className="font-bold">Accounting Status: Pending Client Confirmation</p>
+            <p className="font-bold">Accounting Status: Pending Confirmation</p>
             <p className="text-[#B45309] mt-0.5">
-              This driver voucher represents operational trip advances and driver expenses. No ledger journal entries or payment postings have been posted.
+              This voucher is generated from Daily Book Entry #{voucher.dailyEntrySrNo} and is awaiting confirmation. Operational trip advances and driver expenses are tracked here for reference.
             </p>
           </div>
 
@@ -151,8 +153,14 @@ export function DriverVoucherDetailModal({
 
           {/* Action Controls */}
           <div className="flex items-center justify-between pt-3 border-t border-[#D8D5CE]">
-            <p className="text-xs text-[#7A7F85]">Read-Only Operational View</p>
+            <p className="text-xs text-[#7A7F85]">Source: Daily Book Entry #{voucher.dailyEntrySrNo}</p>
             <div className="flex items-center gap-2">
+              <Link
+                href={`/daily-book?edit=${voucher.dailyEntryId}`}
+                className="inline-flex items-center justify-center rounded-lg border border-[#D8D5CE] bg-white px-3 py-1.5 text-xs font-semibold text-[#E05638] hover:bg-[#FAF8F5] transition-colors"
+              >
+                Edit Daily Book
+              </Link>
               <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
                 Close
               </Button>

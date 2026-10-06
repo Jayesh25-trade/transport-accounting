@@ -15,17 +15,17 @@ type BadgeVariant =
   | "turq"
   | "sun";
 
-interface BadgeProps {
+interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
   tone?: BadgeVariant;
   children: React.ReactNode;
   className?: string;
 }
 
-export function Badge({ variant, tone, children, className }: BadgeProps) {
+export function Badge({ variant, tone, children, className, ...props }: BadgeProps) {
   const activeVariant = tone || variant || "neutral";
   return (
-    <span className={cn("badge", `badge-${activeVariant}`, className)}>
+    <span {...props} className={cn("badge", `badge-${activeVariant}`, className)}>
       {children}
     </span>
   );

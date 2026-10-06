@@ -11,6 +11,8 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { DriverVoucherDetailModal } from "@/components/driver-vouchers/driver-voucher-detail-modal";
 
+import Link from "next/link";
+
 interface DriverVoucherItem {
   id: string;
   firmId: string;
@@ -151,7 +153,7 @@ export default function DriverVouchersPage() {
 
       {/* Notice Banner */}
       <div className="bg-[#FAF8F5] border border-[#D8D5CE] rounded-xl p-4 text-xs text-[#5F6368]">
-        These vouchers come from your Daily Book trips. They are for reference and are not yet added to your accounts.
+        These vouchers track operational trip advances and driver expenses (Advance, Cash, Diesel, A/C) generated automatically from Daily Book trips. They are maintained for operational reference while accounting treatment remains pending.
       </div>
 
       {/* Metrics Summary Cards */}
@@ -314,18 +316,26 @@ export default function DriverVouchersPage() {
                         {formatCurrency(total)}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <Badge variant="warning">
-                          Awaiting confirmation
+                        <Badge variant="warning" title={`Generated from Daily Book Entry #${item.dailyEntrySrNo}`}>
+                          Pending Confirmation
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleViewVoucher(item)}
-                          className="rounded-lg border border-[#D8D5CE] bg-white px-2.5 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#FAF8F5] transition-colors"
-                        >
-                          View
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleViewVoucher(item)}
+                            className="rounded-lg border border-[#D8D5CE] bg-white px-2.5 py-1 text-xs font-semibold text-[#1A1D20] hover:bg-[#FAF8F5] transition-colors"
+                          >
+                            View
+                          </button>
+                          <Link
+                            href={`/daily-book?edit=${item.dailyEntryId}`}
+                            className="rounded-lg border border-[#D8D5CE] bg-white px-2.5 py-1 text-xs font-semibold text-[#E05638] hover:bg-[#FAF8F5] transition-colors"
+                          >
+                            Edit Daily Book
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

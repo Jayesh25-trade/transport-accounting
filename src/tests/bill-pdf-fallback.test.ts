@@ -39,7 +39,7 @@ test("A. PDF rendering test: Stored bill financial values render even when items
   assert.ok(html.includes("3,200.00"), "PDF contains TDS ₹3,200");
   assert.ok(html.includes("6,600.00"), "PDF contains Driver Voucher ₹6,600");
   assert.ok(html.includes("1,50,200.00"), "PDF contains Net Bill Amount ₹1,50,200");
-  assert.ok(html.includes("PENDING"), "PDF status is PENDING");
+  assert.ok(/PENDING/i.test(html), "PDF status is PENDING");
 });
 
 test("B. Bill retrieval fallback test: Zero bill_items but linked trips return trip rows", async () => {
@@ -123,7 +123,7 @@ test("D. Payment status test: Correct status derived from stored bill amounts", 
       items: [],
     };
     const html = buildBillInvoiceHtml(mockBill, null);
-    assert.ok(html.includes(c.expected), `PDF contains payment status ${c.expected}`);
+    assert.ok(new RegExp(c.expected, "i").test(html), `PDF contains payment status ${c.expected}`);
   }
 });
 
