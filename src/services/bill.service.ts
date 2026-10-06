@@ -204,7 +204,7 @@ export async function createBill(
     const billNumber = await getNextBillNumberForFirm(tx, input.firmId);
 
     // 9B. Resolve Bank Account Snapshot & Firm Bill Settings
-    let selectedBankAccountId = input.bankAccountId || null;
+    let selectedBankAccountId = (input.bankAccountId && input.bankAccountId.trim() !== "") ? input.bankAccountId : null;
     let bankDetailsSnapshot: any = null;
 
     try {
@@ -299,15 +299,15 @@ export async function createBill(
         appliedTdsSection: tdsSection,
         appliedTdsPercentage: tdsPercentage.toString(),
         appliedFreightBasis: billPartyRule?.freightBasis || "AUTO_SHORTAGE_BASED",
-        bankAccountId: selectedBankAccountId,
+        bankAccountId: (selectedBankAccountId && String(selectedBankAccountId).trim() !== "") ? selectedBankAccountId : null,
         bankDetailsSnapshot,
-        paymentTerms: paymentTermsVal,
-        dueDate: input.dueDate || null,
-        termsAndConditions: termsAndConditionsVal,
+        paymentTerms: (paymentTermsVal && String(paymentTermsVal).trim() !== "") ? paymentTermsVal : null,
+        dueDate: (input.dueDate && String(input.dueDate).trim() !== "") ? input.dueDate : null,
+        termsAndConditions: (termsAndConditionsVal && String(termsAndConditionsVal).trim() !== "") ? termsAndConditionsVal : null,
         displayOptionsSnapshot,
         status: "POSTED",
-        notes: input.notes || null,
-        createdBy: input.userId || null,
+        notes: (input.notes && String(input.notes).trim() !== "") ? input.notes : null,
+        createdBy: (input.userId && String(input.userId).trim() !== "") ? input.userId : null,
       })
       .returning();
 
