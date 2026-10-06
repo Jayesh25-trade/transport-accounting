@@ -21,13 +21,7 @@ export async function createBill(
   const input = billCreateInputSchema.parse(rawInput);
 
   return await db.transaction(async (tx) => {
-    // 0. Verify active firm exists
-    await verifyFirmExists(tx, input.firmId);
-
-    // 1. Firm isolation check for party
-    await verifyPartyInFirm(tx, input.partyId, input.firmId);
-
-    // 2. Fetch selected trips with their daily entries
+    // 1. Fetch selected trips with their daily entries
     const tripRows = await tx
       .select({
         tripId: trips.id,
@@ -48,17 +42,18 @@ export async function createBill(
       })
       .from(trips)
       .innerJoin(dailyEntries, eq(trips.dailyEntryId, dailyEntries.id))
-      .where(and(eq(trips.firmId, input.firmId), inArray(trips.id, input.tripIds)));
+      .where(inArray(trips.id, input.tripIds));
 
     if (tripRows.length !== input.tripIds.length) {
       throw new EntityNotFoundError("Trip", "One or more requested trip IDs were not found");
     }
 
-    // Validate trips: must belong to the firm, be received, and not already billed.
+    // Determine target firm from trips or input
+    const targetFirmId = tripRows[0]?.firmId || input.firmId;
+    await verifyFirmExists(tx, targetFirmId);
+
+    // Validate trips: must be received and not already billed.
     for (const trip of tripRows) {
-      if (trip.firmId !== input.firmId) {
-        throw new FirmIsolationError(`Trip '${trip.tripId}' does not belong to firm '${input.firmId}'`);
-      }
       if (!trip.isReceived) {
         throw new DomainValidationError(`Trip '${trip.tripId}' is not marked as Received and cannot be billed`);
       }
@@ -79,13 +74,13 @@ export async function createBill(
     const effectivePartyId = distinctPartyIds.length === 1 ? distinctPartyIds[0] : input.partyId;
 
     // Firm isolation check for effective party
-    await verifyPartyInFirm(tx, effectivePartyId, input.firmId);
+    await verifyPartyInFirm(tx, effectivePartyId, targetFirmId);
 
     const rulesRes = distinctPartyIds.length > 0
       ? await tx
           .select()
           .from(customerRules)
-          .where(and(eq(customerRules.firmId, input.firmId), inArray(customerRules.partyId, distinctPartyIds)))
+          .where(and(eq(customerRules.firmId, targetFirmId), inArray(customerRules.partyId, distinctPartyIds)))
       : [];
 
     // Map partyId → rule (null if not configured)
@@ -95,7 +90,7 @@ export async function createBill(
     const billPartyRuleRes = await tx
       .select()
       .from(customerRules)
-      .where(and(eq(customerRules.firmId, input.firmId), eq(customerRules.partyId, effectivePartyId)))
+      .where(and(eq(customerRules.firmId, targetFirmId), eq(customerRules.partyId, effectivePartyId)))
       .limit(1);
     const billPartyRule = billPartyRuleRes.length > 0 ? billPartyRuleRes[0] : null;
 
@@ -206,7 +201,7 @@ export async function createBill(
     });
 
     // 9. Allocate Sequential Bill Number using FOR UPDATE (Rule 7)
-    const billNumber = await getNextBillNumberForFirm(tx, input.firmId);
+    const billNumber = await getNextBillNumberForFirm(tx, targetFirmId);
 
     // 9B. Resolve Bank Account Snapshot & Firm Bill Settings
     let selectedBankAccountId = (input.bankAccountId && input.bankAccountId.trim() !== "") ? input.bankAccountId : null;
@@ -217,7 +212,7 @@ export async function createBill(
         const bankRows = await tx
           .select()
           .from(bankAccounts)
-          .where(and(eq(bankAccounts.id, selectedBankAccountId), eq(bankAccounts.firmId, input.firmId)))
+          .where(and(eq(bankAccounts.id, selectedBankAccountId), eq(bankAccounts.firmId, targetFirmId)))
           .limit(1);
         if (bankRows.length > 0) {
           bankDetailsSnapshot = {
@@ -235,7 +230,7 @@ export async function createBill(
         const defaultBankRows = await tx
           .select()
           .from(bankAccounts)
-          .where(and(eq(bankAccounts.firmId, input.firmId), eq(bankAccounts.isDefaultForBills, true)))
+          .where(and(eq(bankAccounts.firmId, targetFirmId), eq(bankAccounts.isDefaultForBills, true)))
           .limit(1);
         if (defaultBankRows.length > 0) {
           selectedBankAccountId = defaultBankRows[0].id;
@@ -260,7 +255,7 @@ export async function createBill(
       settingsRows = await tx
         .select()
         .from(firmBillSettings)
-        .where(eq(firmBillSettings.firmId, input.firmId))
+        .where(eq(firmBillSettings.firmId, targetFirmId))
         .limit(1);
     } catch (_err) {
       // firm_bill_settings table might not exist in unmigrated DB environments
@@ -288,7 +283,7 @@ export async function createBill(
     const [bill] = await tx
       .insert(bills)
       .values({
-        firmId: input.firmId,
+        firmId: targetFirmId,
         partyId: effectivePartyId,
         billNumber,
         billDate: input.billDate,
@@ -351,7 +346,7 @@ export async function createBill(
     // 12. Insert TDS Entry if applicable
     if (tdsRes.tdsAmount > 0) {
       await tx.insert(tdsEntries).values({
-        firmId: input.firmId,
+        firmId: targetFirmId,
         billId: bill.id,
         partyId: effectivePartyId,
         tdsSection: tdsRes.tdsSection,
@@ -363,17 +358,13 @@ export async function createBill(
 
     // 13. Insert Debit Note if shortage debit exists
     if (totalShortageDebit > 0) {
-      // Compute a bill-level summary materialRateApplied:
-      // When trips have different material rates (different customer rules),
-      // we store a weighted-average rate so the debit note header is meaningful.
-      // Individual rates are preserved per-trip in bill_items.shortage_material_rate.
       const totalApplicableQty = preparedItems.reduce((sum, i) => sum + i.shortageQtyApplicable, 0);
       const weightedMaterialRate = totalApplicableQty > 0
         ? preparedItems.reduce((sum, i) => sum + i.shortageMaterialRate * i.shortageQtyApplicable, 0) / totalApplicableQty
         : (preparedItems[0]?.shortageMaterialRate ?? 0);
 
       await tx.insert(debitNotes).values({
-        firmId: input.firmId,
+        firmId: targetFirmId,
         billId: bill.id,
         partyId: effectivePartyId,
         voucherNumber: `DN-${billNumber}`,
@@ -390,7 +381,7 @@ export async function createBill(
     // 14. Post Ledger Transactions (Deepraj Accounting Treatment)
     // a. Transportation Charges (Credit)
     const tx1 = await postLedgerEntry(tx, {
-      firmId: input.firmId,
+      firmId: targetFirmId,
       partyId: effectivePartyId,
       transactionDate: input.billDate,
       particulars: `Transportation Charges RCM (Bill #${billNumber})`,
@@ -407,7 +398,7 @@ export async function createBill(
     // b. TDS Journal (Debit)
     if (billTotals.tdsAmount > 0) {
       const tx2 = await postLedgerEntry(tx, {
-        firmId: input.firmId,
+        firmId: targetFirmId,
         partyId: effectivePartyId,
         transactionDate: input.billDate,
         particulars: `TDS on Contract 94C Journal (Bill #${billNumber})`,
