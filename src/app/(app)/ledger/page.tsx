@@ -125,10 +125,15 @@ export default function LedgerPage() {
     setFetchError(null);
 
     try {
-      // 1. Fetch opening balance for party
-      const obList = await api.get<OpeningBalanceRecord[]>("/api/opening-balances");
-      const partyOB = obList.find((ob) => ob.partyId === selectedPartyId) || null;
-      setOpeningBalance(partyOB);
+      // 1. Fetch opening balance for party (isolated so it never blocks the ledger statement)
+      try {
+        const obList = await api.get<OpeningBalanceRecord[]>("/api/opening-balances");
+        const partyOB = obList.find((ob) => ob.partyId === selectedPartyId) || null;
+        setOpeningBalance(partyOB);
+      } catch (obErr) {
+        console.warn("[LEDGER_PAGE] Failed to load opening balance:", obErr);
+        setOpeningBalance(null);
+      }
 
       // 2. Build query parameters for backend
       const params = new URLSearchParams({ partyId: selectedPartyId });
@@ -139,8 +144,9 @@ export default function LedgerPage() {
       if (searchQuery.trim()) params.append("search", searchQuery.trim());
 
       const txs = await api.get<LedgerTransactionRecord[]>(`/api/ledger?${params.toString()}`);
-      setLedgerEntries(txs);
+      setLedgerEntries(Array.isArray(txs) ? txs : []);
     } catch (err: any) {
+      console.error("[LEDGER_PAGE] Failed to load ledger transactions:", err);
       setFetchError(err instanceof ApiError ? err.message : "Failed to load customer ledger");
     } finally {
       setLoadingLedger(false);
