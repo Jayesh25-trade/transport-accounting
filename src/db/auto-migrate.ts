@@ -46,7 +46,12 @@ export async function ensureDbSchemaSynced() {
       )
     `);
 
-    // 3. Add columns to bills table individually
+    // 3. Add all new columns to bills table individually
+    await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS driver_voucher_total numeric(15, 2) NOT NULL DEFAULT '0'`);
+    await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS applied_tds_section varchar(20)`);
+    await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS applied_tds_percentage numeric(5, 2)`);
+    await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS applied_freight_basis varchar(20)`);
+    await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bill_edit_locked boolean NOT NULL DEFAULT false`);
     await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bank_account_id uuid REFERENCES bank_accounts(id) ON DELETE SET NULL`);
     await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS bank_details_snapshot jsonb`);
     await db.execute(sql`ALTER TABLE bills ADD COLUMN IF NOT EXISTS payment_terms varchar(100)`);
