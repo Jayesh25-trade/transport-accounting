@@ -2,7 +2,7 @@ import { sql, eq, and, inArray, desc } from "drizzle-orm";
 import { type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { bills, billItems, tdsEntries, debitNotes, trips, dailyEntries, driverVouchers, customerRules, ledgerTransactions, parties, bankAccounts, firmBillSettings } from "../db/schema";
 import { billCreateInputSchema, billEditInputSchema, type BillCreateInput, type BillEditInput } from "../validators/bill";
-import { verifyPartyInFirm, verifyBillInFirm } from "./firm.service";
+import { verifyPartyInFirm, verifyBillInFirm, verifyFirmExists } from "./firm.service";
 import { getNextBillNumberForFirm } from "./sequence.service";
 import { calculateFreight } from "../domain/freight";
 import { calculateShortage } from "../domain/shortage";
@@ -21,6 +21,9 @@ export async function createBill(
   const input = billCreateInputSchema.parse(rawInput);
 
   return await db.transaction(async (tx) => {
+    // 0. Verify active firm exists
+    await verifyFirmExists(tx, input.firmId);
+
     // 1. Firm isolation check for party
     await verifyPartyInFirm(tx, input.partyId, input.firmId);
 

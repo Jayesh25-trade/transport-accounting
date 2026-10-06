@@ -60,6 +60,25 @@ export async function ensureDbSchemaSynced() {
     // 4. Add columns to customer_rules table individually
     await db.execute(sql`ALTER TABLE customer_rules ADD COLUMN IF NOT EXISTS material_rate_per_ton numeric(12, 4)`);
 
+    // 5. AUTO-HEAL ORPHANED FIRM REFERENCES: Ensure any firm_id present in parties or trips exists in firms table
+    await db.execute(sql`
+      INSERT INTO firms (id, name, code, is_active)
+      SELECT DISTINCT p.firm_id, 'Deepraj Transport', 'DEEPRAJ', true
+      FROM parties p
+      LEFT JOIN firms f ON f.id = p.firm_id
+      WHERE f.id IS NULL AND p.firm_id IS NOT NULL
+      ON CONFLICT (id) DO NOTHING
+    `);
+
+    await db.execute(sql`
+      INSERT INTO firms (id, name, code, is_active)
+      SELECT DISTINCT t.firm_id, 'Deepraj Transport', 'DEEPRAJ', true
+      FROM trips t
+      LEFT JOIN firms f ON f.id = t.firm_id
+      WHERE f.id IS NULL AND t.firm_id IS NOT NULL
+      ON CONFLICT (id) DO NOTHING
+    `);
+
     isSynced = true;
     console.log("[AutoMigrate] PostgreSQL schema successfully synchronized.");
   } catch (err: any) {
